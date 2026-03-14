@@ -1,0 +1,27 @@
+{
+  "name": "@sandra/worker",
+  "version": "0.1.0",
+  "engines": {"node": ">=24.0.0"},
+  "private": true,
+  "type": "module",
+  "main": "./dist/reminder-consumer.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/reminder-consumer.ts",
+    "start": "node dist/reminder-consumer.js",
+    "test": "vitest run --passWithNoTests",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.600.0",
+    "@sandra/core": "workspace:*",
+    "@sandra/utils": "workspace:*",
+    "@sandra/otel": "workspace:*",
+    "@sandra/extensions-telegram": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.0.0",
+    "vitest": "^1.6.0"
+  }
+}

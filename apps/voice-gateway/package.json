@@ -1,0 +1,8 @@
+{
+  "name": "@sandra/voice-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "tsc", "dev": "echo 'voice-gateway stub'", "lint": "tsc --noEmit" },
+  "devDependencies": { "typescript": "^5.4.0" }
+}

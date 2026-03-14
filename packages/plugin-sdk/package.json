@@ -1,0 +1,11 @@
+{
+  "name": "@sandra/plugin-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": { "build": "tsc", "test": "vitest run" },
+  "dependencies": { "@sandra/core": "workspace:*", "@sandra/utils": "workspace:*" },
+  "devDependencies": { "typescript": "^5.9.3", "vitest": "^3.2.4", "@types/node": "^20.0.0" }
+}

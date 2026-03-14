@@ -1,0 +1,19 @@
+{
+  "name": "@sandra/extensions-telegram",
+  "version": "0.1.0",
+  "engines": {"node": ">=24.0.0"},
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc", "dev": "tsc --watch", "test": "vitest run --passWithNoTests", "lint": "tsc --noEmit" },
+  "dependencies": {
+    "grammy": "^1.27.0",
+    "@sandra/agent": "workspace:*",
+    "@sandra/core": "workspace:*",
+    "@sandra/utils": "workspace:*",
+    "@sandra/i18n": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.4.0", "vitest": "^1.6.0" }
+}

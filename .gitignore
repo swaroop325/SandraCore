@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.npmrc
+
+# Turborepo
+.turbo/
+
+# LanceDB data
+lancedb/
+*.lance
+*.lancedb/
+
+# Drizzle
+drizzle/meta/
+
+# Logs
+*.log
+logs/
+pm2-*.log
+
+# Test coverage
+coverage/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/settings.json
+.idea/

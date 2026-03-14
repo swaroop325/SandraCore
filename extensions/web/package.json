@@ -1,0 +1,25 @@
+{
+  "name": "@sandra/extensions-web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@sandra/core": "workspace:*",
+    "@sandra/utils": "workspace:*",
+    "@sandra/agent": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.13"
+  }
+}
