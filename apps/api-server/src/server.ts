@@ -24,20 +24,30 @@ const chatHtml = readFileSync(
 initOtel("sandra-api");
 await loadSecrets();
 
-if (!process.env["TELEGRAM_BOT_TOKEN"]) {
-  throw new Error("TELEGRAM_BOT_TOKEN is required but not set");
+const telegramToken = process.env["TELEGRAM_BOT_TOKEN"];
+if (!telegramToken) {
+  console.warn("[server] TELEGRAM_BOT_TOKEN not set — Telegram integration disabled");
 }
-const bot = createBot(process.env["TELEGRAM_BOT_TOKEN"]!);
+const bot = telegramToken ? createBot(telegramToken) : null;
 
 // Register Telegram webhook
-const domain = process.env["DOMAIN"];
-if (domain) {
-  await bot.api.setWebhook(`https://${domain}/webhooks/telegram`, {
-    secret_token: process.env["TELEGRAM_WEBHOOK_SECRET"]!,
-  });
+if (bot) {
+  const domain = process.env["DOMAIN"];
+  if (domain) {
+    await bot.api.setWebhook(`https://${domain}/webhooks/telegram`, {
+      secret_token: process.env["TELEGRAM_WEBHOOK_SECRET"]!,
+    });
+  }
 }
 
 const app = express();
+
+// Trust one proxy hop (ngrok / nginx / load balancer) so that X-Forwarded-For
+// is used correctly for rate limiting and IP detection.
+if (process.env["TRUST_PROXY"] === "1" || process.env["TRUST_PROXY"] === "true" ||
+    process.env["SANDRA_LOCAL_DEV"] === "true") {
+  app.set("trust proxy", 1);
+}
 
 // ── Security headers ──────────────────────────────────────────────────────
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -137,10 +147,11 @@ function getClientIp(req: Request): string {
   return req.socket?.remoteAddress ?? "unknown";
 }
 
-const webhookHandler = getWebhookHandler(bot);
+const webhookHandler = bot ? getWebhookHandler(bot) : null;
 
 // ── Telegram webhook ──────────────────────────────────────────────────────
 app.post("/webhooks/telegram", (req: Request, res: Response) => {
+  if (!webhookHandler) { res.sendStatus(503); return; }
   const secret = req.headers["x-telegram-bot-api-secret-token"];
   if (secret !== process.env["TELEGRAM_WEBHOOK_SECRET"]) {
     res.sendStatus(403);

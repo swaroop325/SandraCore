@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { Router, type Request, type Response } from "express";
-import { db, auditLog, safeCompare, sha256Hex } from "@sandra/utils";
+import { db, auditLog, safeCompare, sha256Hex, generatePairingCode } from "@sandra/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ function requireAdminKey(req: Request, res: Response, next: () => void): void {
 
 // ── Router ────────────────────────────────────────────────────────────────
 
-export const adminRouter = Router();
+export const adminRouter: Router = Router();
 
 adminRouter.use(requireAdminKey);
 
@@ -198,7 +198,7 @@ adminRouter.post("/users/:id/block", async (req: Request, res: Response) => {
 adminRouter.post("/pairing/generate", async (req: Request, res: Response) => {
   const { channel = "telegram" } = (req.body ?? {}) as { channel?: string };
   try {
-    const code = crypto.randomBytes(16).toString("hex").toUpperCase();
+    const code = generatePairingCode();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await db.query(

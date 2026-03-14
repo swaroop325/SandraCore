@@ -2,7 +2,9 @@
   "name": "sandra-core",
   "private": true,
   "packageManager": "pnpm@9.0.0",
-  "engines": {"node": ">=24.0.0"},
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -15,15 +17,17 @@
     "lint": "turbo run lint",
     "db:migrate": "drizzle-kit migrate",
     "db:generate": "drizzle-kit generate",
-    "wizard": "tsx scripts/wizard.ts"
+    "wizard": "tsx scripts/wizard.ts",
+    "pair": "node scripts/pair.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "drizzle-kit": "^0.22.0",
+    "tsx": "^4.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
-    "drizzle-kit": "^0.22.0",
-    "vitest": "^1.6.0",
-    "@vitest/coverage-v8": "^1.6.0"
+    "vitest": "^1.6.0"
   },
   "pnpm": {
     "overrides": {

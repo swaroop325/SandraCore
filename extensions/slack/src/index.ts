@@ -113,7 +113,7 @@ export function createSlackApp(signingSecret: string, botToken: string): App {
       }
 
       // Show typing indicator (fire-and-forget; not all plan types support it)
-      await client.conversations
+      await (client.conversations as unknown as { typing: (args: { channel: string }) => Promise<void> })
         .typing({ channel: channelId })
         .catch(() => {/* ignore */});
 
@@ -174,8 +174,7 @@ export function getWebhookHandler(
 ): (req: IncomingMessage, res: ServerResponse) => void {
   // Bolt's default HTTP receiver exposes requestHandler on the receiver object
   return (
-    a.receiver as unknown as {
-      requestHandler: (req: IncomingMessage, res: ServerResponse) => void;
-    }
-  ).requestHandler;
+    (a as unknown as { receiver: { requestHandler: (req: IncomingMessage, res: ServerResponse) => void } })
+      .receiver.requestHandler
+  );
 }

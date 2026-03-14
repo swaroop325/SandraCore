@@ -99,7 +99,7 @@ export async function writeMemory(userId: string, text: string): Promise<void> {
  */
 export async function forgetAllMemories(userId: string): Promise<void> {
   const table = await getTable();
-  await table.delete(`userId = '${userId.replace(/'/g, "''")}'`);
+  await table.delete(`"userId" = '${userId.replace(/'/g, "''")}'`);
 
   const fts = getFtsStore();
   if (fts !== null) {
@@ -114,7 +114,7 @@ export async function forgetMemory(userId: string, text: string): Promise<void> 
   const table = await getTable();
   const escapedUserId = userId.replace(/'/g, "''");
   const escapedText = text.replace(/'/g, "''");
-  await table.delete(`userId = '${escapedUserId}' AND text = '${escapedText}'`);
+  await table.delete(`"userId" = '${escapedUserId}' AND text = '${escapedText}'`);
 
   const fts = getFtsStore();
   if (fts !== null) {
@@ -140,7 +140,7 @@ export async function recallMemory(
     const vector = await embed(query);
     const results = await table
       .search(vector)
-      .where(`userId = '${userId.replace(/'/g, "''")}'`)
+      .where(`"userId" = '${userId.replace(/'/g, "''")}'`)
       .limit(k * 3)
       .toArray();
 

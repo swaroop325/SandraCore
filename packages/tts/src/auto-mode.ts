@@ -95,12 +95,15 @@ export async function maybeApplyTtsToPayload(opts: {
   }
 
   // Build TTS options, directive values override config defaults
+  const resolvedVoice = directives.voice ?? config.defaultVoice;
+  const resolvedRate = directives.rate ?? config.defaultRate;
+  const resolvedPitch = directives.pitch ?? config.defaultPitch;
   const ttsOptions: TtsOptions = {
     text: cleanText,
-    channel: opts.channel,
-    voice: directives.voice ?? config.defaultVoice,
-    rate: directives.rate ?? config.defaultRate,
-    pitch: directives.pitch ?? config.defaultPitch,
+    ...(opts.channel !== undefined && { channel: opts.channel }),
+    ...(resolvedVoice !== undefined && { voice: resolvedVoice }),
+    ...(resolvedRate !== undefined && { rate: resolvedRate }),
+    ...(resolvedPitch !== undefined && { pitch: resolvedPitch }),
   };
 
   const result = await textToSpeech(ttsOptions);

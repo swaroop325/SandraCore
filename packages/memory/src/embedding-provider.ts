@@ -11,7 +11,7 @@ export interface EmbeddingProvider {
   embedBatch?(texts: string[]): Promise<number[][]>;
 }
 
-// --- Bedrock Titan (existing behavior) ---
+// --- Bedrock Titan ---
 
 export function createBedrockEmbeddingProvider(): EmbeddingProvider {
   const client = new BedrockRuntimeClient({ region: REGION });
@@ -31,6 +31,47 @@ export function createBedrockEmbeddingProvider(): EmbeddingProvider {
         embedding: number[];
       };
       return parsed.embedding;
+    },
+  };
+}
+
+// --- Bedrock Cohere (default for ap-southeast-1) ---
+
+export function createCohereEmbeddingProvider(options?: {
+  model?: string;
+}): EmbeddingProvider {
+  const client = new BedrockRuntimeClient({ region: REGION });
+  const model = options?.model ?? process.env["COHERE_EMBED_MODEL"] ?? "cohere.embed-multilingual-v3";
+
+  return {
+    name: "cohere",
+    async embed(text: string): Promise<number[]> {
+      const res = await client.send(
+        new InvokeModelCommand({
+          modelId: model,
+          contentType: "application/json",
+          accept: "application/json",
+          body: JSON.stringify({ texts: [text], input_type: "search_document" }),
+        })
+      );
+      const parsed = JSON.parse(Buffer.from(res.body).toString()) as {
+        embeddings: number[][];
+      };
+      return parsed.embeddings[0]!;
+    },
+    async embedBatch(texts: string[]): Promise<number[][]> {
+      const res = await client.send(
+        new InvokeModelCommand({
+          modelId: model,
+          contentType: "application/json",
+          accept: "application/json",
+          body: JSON.stringify({ texts, input_type: "search_document" }),
+        })
+      );
+      const parsed = JSON.parse(Buffer.from(res.body).toString()) as {
+        embeddings: number[][];
+      };
+      return parsed.embeddings;
     },
   };
 }
@@ -300,8 +341,11 @@ export function autoConfigureEmbeddingProvider(): EmbeddingProvider {
     const apiKey = process.env["MISTRAL_API_KEY"] ?? "";
     const model = process.env["MISTRAL_EMBED_MODEL"];
     provider = createMistralEmbeddingProvider({ apiKey, ...(model !== undefined ? { model } : {}) });
-  } else {
+  } else if (envProvider === "bedrock-titan") {
     provider = createBedrockEmbeddingProvider();
+  } else {
+    // Default: Cohere via Bedrock (works in ap-southeast-1 without inference profile)
+    provider = createCohereEmbeddingProvider();
   }
 
   setEmbeddingProvider(provider);

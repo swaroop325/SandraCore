@@ -3,7 +3,7 @@ import { db, auditLog, createSubsystemLogger } from "@sandra/utils";
 import { createWebSession } from "@sandra/extensions-web";
 
 const log = createSubsystemLogger("onboarding");
-const router = Router();
+const router: Router = Router();
 
 // ── Brute-force rate limiter for pairing code attempts ────────────────────
 const PAIR_MAX_ATTEMPTS = 5;

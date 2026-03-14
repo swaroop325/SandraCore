@@ -78,12 +78,12 @@ export async function textToSpeech(options: TtsOptions): Promise<TtsResult> {
     // Note: ElevenLabs voice is controlled via ELEVENLABS_VOICE_ID env var in the provider.
     audio = await elevenlabsTts(text, {
       apiKey: elevenLabsKey,
-      stability: options.stability,
-      similarityBoost: options.similarityBoost,
-      style: options.style,
-      speed: options.speed,
-      useSpeakerBoost: options.useSpeakerBoost,
-      seed: options.seed,
+      ...(options.stability !== undefined && { stability: options.stability }),
+      ...(options.similarityBoost !== undefined && { similarityBoost: options.similarityBoost }),
+      ...(options.style !== undefined && { style: options.style }),
+      ...(options.speed !== undefined && { speed: options.speed }),
+      ...(options.useSpeakerBoost !== undefined && { useSpeakerBoost: options.useSpeakerBoost }),
+      ...(options.seed !== undefined && { seed: options.seed }),
     });
   } else if (provider === "openai") {
     if (openaiKey === undefined) {
@@ -94,8 +94,8 @@ export async function textToSpeech(options: TtsOptions): Promise<TtsResult> {
     // system / edge
     audio = await edgeTts(text, {
       voice: options.voice ?? "en-US-JennyNeural",
-      rate: options.rate,
-      pitch: options.pitch,
+      ...(options.rate !== undefined && { rate: options.rate }),
+      ...(options.pitch !== undefined && { pitch: options.pitch }),
     });
   }
 

@@ -11,6 +11,11 @@ let loaded = false;
 
 export async function loadSecrets(): Promise<void> {
   if (loaded) return;
+  // In local dev, secrets are already loaded via .env.local — skip AWS call.
+  if (process.env["SANDRA_LOCAL_DEV"] === "true") {
+    loaded = true;
+    return;
+  }
   if (!client) client = new SecretsManagerClient({ region: REGION });
   const cmd = new GetSecretValueCommand({ SecretId: "sandra/prod" });
   const res = await client.send(cmd);

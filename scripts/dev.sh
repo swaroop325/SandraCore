@@ -40,7 +40,6 @@ ok "Node.js $(node -v)"
 command -v pnpm &>/dev/null || die "pnpm not found. Run: npm install -g pnpm"
 ok "pnpm $(pnpm -v)"
 
-command -v psql &>/dev/null || warn "psql not found — DB migration step will be skipped if DATABASE_URL not set."
 
 # ── 2. .env.local ────────────────────────────────────────────────────────────
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -95,34 +94,46 @@ ok "LanceDB path: $LANCEDB_PATH"
 
 # ── 6. DB migration ──────────────────────────────────────────────────────────
 if [[ "$SKIP_DB" == false ]] && [[ -n "${DATABASE_URL:-}" ]]; then
-  info "Running DB migration..."
-  # Try pg connection first
-  if psql "$DATABASE_URL" -c "SELECT 1" &>/dev/null 2>&1; then
-    psql "$DATABASE_URL" -f "$ROOT/infra/migrations/0001_initial.sql" \
-      && ok "Migration applied" \
-      || warn "Migration failed or already applied (continuing)"
-  else
-    warn "Cannot connect to DATABASE_URL — skipping migration."
-    warn "Make sure PostgreSQL is running locally."
-  fi
+  info "Running DB migrations..."
+  node "$ROOT/scripts/migrate.mjs"
 elif [[ "$SKIP_DB" == true ]]; then
   warn "Skipping DB migration (--skip-db)"
 else
   warn "DATABASE_URL not set — skipping migration"
 fi
 
-# ── 7. Telegram webhook ────────────────────────────────────────────────────
-echo ""
-info "Telegram webhook setup:"
+# ── 7. Telegram webhook / ngrok ───────────────────────────────────────────
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
-  warn "TELEGRAM_BOT_TOKEN not set — bot will not start."
-  warn "For local dev, use: npx localtunnel --port 3000 --subdomain sandra-dev"
-else
-  warn "For local dev you need a public HTTPS URL for Telegram webhooks."
-  warn "Options:"
-  warn "  1. npx localtunnel --port 3000"
-  warn "  2. npx ngrok http 3000"
-  warn "Then set DOMAIN=<your-tunnel-host> in .env.local and re-run."
+  warn "TELEGRAM_BOT_TOKEN not set — Telegram disabled"
+elif [[ -z "${DOMAIN:-}" ]]; then
+  if command -v ngrok &>/dev/null; then
+    info "Starting ngrok tunnel on port ${PORT:-3000}..."
+    pkill -f "ngrok http" 2>/dev/null || true
+    ngrok http "${PORT:-3000}" --log=stdout > /tmp/ngrok-sandra.log 2>&1 &
+    NGROK_PID=$!
+    # Poll up to 8s for ngrok to be ready
+    NGROK_URL=""
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 1
+      NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null \
+        | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const t=JSON.parse(d).tunnels;const h=t?.find(x=>x.proto==='https');process.stdout.write(h?.public_url??'')}catch{}})" 2>/dev/null || true)
+      [[ -n "$NGROK_URL" ]] && break
+    done
+    if [[ -n "$NGROK_URL" ]]; then
+      export DOMAIN="${NGROK_URL#https://}"
+      ok "ngrok tunnel: $NGROK_URL (DOMAIN=$DOMAIN)"
+    else
+      NGROK_ERR=$(grep -i "error\|authtoken\|auth" /tmp/ngrok-sandra.log 2>/dev/null | head -2 || true)
+      if echo "$NGROK_ERR" | grep -qi "authtoken\|auth"; then
+        warn "ngrok needs an auth token — run: ngrok config add-authtoken <your-token>"
+        warn "Get your token at: https://dashboard.ngrok.com/get-started/your-authtoken"
+      else
+        warn "ngrok tunnel not ready — Telegram webhook skipped (check /tmp/ngrok-sandra.log)"
+      fi
+    fi
+  else
+    warn "DOMAIN not set — Telegram webhook inactive (install ngrok or set DOMAIN in .env.local)"
+  fi
 fi
 
 # ── 8. Start dev server ───────────────────────────────────────────────────
@@ -137,6 +148,11 @@ cd "$ROOT"
 # Override loadSecrets to use .env.local values already in process.env
 # by setting SANDRA_LOCAL_DEV=true which the app can check
 export SANDRA_LOCAL_DEV=true
+
+# Kill any previously running Sandra processes so the port is free
+lsof -ti :"${PORT:-3000}" | xargs kill -9 2>/dev/null || true
+pkill -9 -f "apps/api-server/dist/server.js" 2>/dev/null || true
+pkill -9 -f "apps/worker/dist/reminder-consumer.js" 2>/dev/null || true
 
 # Run api-server and worker in parallel, kill both on Ctrl+C
 trap 'echo ""; info "Stopping..."; kill 0' INT TERM

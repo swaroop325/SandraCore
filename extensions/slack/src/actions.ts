@@ -77,9 +77,9 @@ export async function sendSlackMessage(
     await slackApp.client.chat.postMessage({
       channel: channelId,
       text,
-      blocks: options.blocks as Parameters<
+      blocks: options.blocks as Exclude<NonNullable<Parameters<
         typeof slackApp.client.chat.postMessage
-      >[0]["blocks"],
+      >[0]>["blocks"], undefined>,
     });
   } else {
     await sendSlack(channelId, text);

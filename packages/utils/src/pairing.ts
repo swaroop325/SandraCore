@@ -86,7 +86,7 @@ export async function redeemPairingCode(
       `SELECT id, telegram_id
        FROM pairing_requests
        WHERE code = $1
-         AND telegram_id = $2
+         AND (telegram_id = $2 OR telegram_id = 0)
          AND used_at IS NULL
          AND expires_at > now()
        FOR UPDATE`,

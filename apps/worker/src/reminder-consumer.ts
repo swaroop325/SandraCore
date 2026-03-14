@@ -71,6 +71,18 @@ async function poll(): Promise<void> {
   }
 }
 
+const sqsUrl = process.env["SQS_QUEUE_URL"] ?? "";
+if (!sqsUrl || sqsUrl.includes("YOUR_ACCOUNT")) {
+  console.warn("[worker] SQS_QUEUE_URL not configured — reminder worker idle (set a real queue URL to enable)");
+  // Keep process alive without triggering the "unsettled top-level await" warning
+  setInterval(() => { /* keep-alive */ }, 2 ** 30);
+  process.exitCode = 0;
+}
+
 while (true) {
-  await poll().catch(console.error);
+  await poll().catch((err) => {
+    console.error("[worker] poll error:", err instanceof Error ? err.message : err);
+  });
+  // Brief backoff to avoid tight error loops
+  await new Promise(resolve => setTimeout(resolve, 1000));
 }

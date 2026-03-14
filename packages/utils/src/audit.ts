@@ -17,7 +17,10 @@ export type AuditAction =
   | "security.violation"
   | "task.created"
   | "task.deleted"
-  | "reminder.fired";
+  | "reminder.fired"
+  | "user.approved"
+  | "user.blocked"
+  | "user.onboarded";
 
 export interface AuditEntry {
   userId?: string;

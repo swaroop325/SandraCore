@@ -31,24 +31,12 @@ export async function edgeTts(
   const rate = options?.rate ?? "+0%";
   const pitch = options?.pitch ?? "+0Hz";
 
-  // Try npm edge-tts package first (ttsChunks async iterator API, v3.x)
+  // Try npm edge-tts package first (v1.x tts() function API)
   try {
-    const { EdgeTTS } = await import("edge-tts");
-    const tts = new EdgeTTS();
-    const chunks: Buffer[] = [];
-
-    for await (const chunk of tts.ttsChunks(text, { voice, rate, pitch })) {
-      if (chunk.type === "audio") {
-        chunks.push(Buffer.from(chunk.data));
-      }
-    }
-
-    if (chunks.length === 0) {
-      log.warn("edgeTts (npm): no audio chunks received, trying CLI fallback");
-    } else {
-      log.debug("edgeTts (npm): success", { voice, chunks: chunks.length });
-      return Buffer.concat(chunks);
-    }
+    const { tts } = await import("edge-tts");
+    const audio = await tts(text, { voice, rate, pitch });
+    log.debug("edgeTts (npm): success", { voice, bytes: audio.length });
+    return audio;
   } catch (npmErr) {
     log.debug("edgeTts (npm) unavailable or failed, trying CLI fallback", {
       error: npmErr instanceof Error ? npmErr.message : String(npmErr),
