@@ -182,7 +182,7 @@ sandra-core/
 │
 ├── assets/
 │   ├── banner.jpeg          Project banner (1024×1024)
-│   └── icon.jpeg            Sandra icon (1024×1024)
+│   └── icon.png             Sandra icon (1024×1024)
 │
 ├── apps/
 │   ├── api-server/          Express — webhooks · REST API · /chat UI · Gmail Pub/Sub
@@ -1242,7 +1242,7 @@ This table compares every major capability area.
 ---
 
 <div align="center">
-  <img src="assets/icon.jpeg" alt="Sandra" width="48" style="border-radius:50%; opacity:0.7;" />
+  <img src="assets/icon.png" alt="Sandra" width="48" style="border-radius:50%; opacity:0.7;" />
   <br/>
   <sub>SandraCore v0.1.0 · Built with AWS Bedrock · pnpm workspaces · Turborepo · Vitest</sub>
 </div>
