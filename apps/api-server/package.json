@@ -16,6 +16,7 @@
     "express": "^4.19.0",
     "express-rate-limit": "^7.3.0",
     "@sandra/agent": "workspace:*",
+    "@sandra/cron": "workspace:*",
     "@sandra/core": "workspace:*",
     "@sandra/utils": "workspace:*",
     "@sandra/otel": "workspace:*",

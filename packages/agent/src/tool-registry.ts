@@ -294,7 +294,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "cron",
     description:
-      "Manage scheduled tasks (cron jobs). Supports actions: list (list all scheduled tasks), add (create a new scheduled task), remove (delete a task by id), enable (re-enable a paused task), disable (pause a task), status (show next run times).",
+      "Set reminders and manage scheduled tasks. Use this whenever the user asks to be reminded about something at a specific time, or wants a recurring task. Supports actions: add (create a reminder or recurring task), list (show all scheduled tasks), remove (delete by id), enable, disable, status. For the 'add' action, use the expression field with: an ISO datetime string like '2026-03-14T16:45:00Z' for one-shot reminders, a duration like 'every:120000' (ms) for recurring, or a cron expression like '0 9 * * 1-5' for complex schedules.",
     input_schema: {
       type: "object",
       properties: {
@@ -309,7 +309,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         expression: {
           type: "string",
-          description: "Cron expression for the add action, e.g. \"0 9 * * 1-5\".",
+          description: "Schedule for the add action. Use an ISO 8601 datetime (e.g. '2026-03-14T16:45:00Z') for a one-shot reminder, 'every:<ms>' (e.g. 'every:3600000') for recurring every N milliseconds, or a standard 5-field cron expression (e.g. '0 9 * * 1-5') for complex schedules. Always use UTC for datetimes.",
         },
         task: {
           type: "string",

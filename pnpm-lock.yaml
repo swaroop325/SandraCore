@@ -43,6 +43,9 @@ importers:
       '@sandra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sandra/cron':
+        specifier: workspace:*
+        version: link:../../packages/cron
       '@sandra/extensions-telegram':
         specifier: workspace:*
         version: link:../../extensions/telegram

@@ -22,8 +22,8 @@ async function getCronModule() {
       delete: (id: string) => Promise<void>;
       disable?: (id: string) => Promise<void>;
     };
-    normalizeSchedule: (s: string) => unknown;
-    nextOccurrenceForSchedule: (s: unknown, now: Date) => Date;
+    normalizeSchedule: (job: unknown) => unknown;
+    nextOccurrenceForSchedule: (s: unknown, now: Date) => Date | null;
   }>;
 }
 import { executePluginTool } from "./plugin-tool-executor.js";
@@ -329,7 +329,21 @@ export async function executeTool(
           } catch {
             // Context injection is best-effort; don't fail the cron creation
           }
-          const schedule = normalizeSchedule(expression);
+          // Parse expression string into a CronSchedule object
+          const parseExpression = (expr: string): unknown => {
+            // ISO datetime → one-shot "at" schedule
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(expr)) {
+              return { kind: "at", at: expr };
+            }
+            // "every:<ms>" → recurring schedule
+            const everyMatch = expr.match(/^every:(\d+)$/);
+            if (everyMatch) {
+              return { kind: "every", everyMs: Number(everyMatch[1]) };
+            }
+            // Default: treat as 5-field cron expression
+            return { kind: "cron", expr };
+          };
+          const schedule = parseExpression(expression);
           const now = new Date();
           const job: CronJob = {
             id: crypto.randomUUID(),

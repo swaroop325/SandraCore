@@ -136,7 +136,38 @@ elif [[ -z "${DOMAIN:-}" ]]; then
   fi
 fi
 
-# ── 8. Start dev server ───────────────────────────────────────────────────
+# ── 8. Chrome (browser tool) ─────────────────────────────────────────────
+CHROME_PORT="${CHROME_PORT:-9222}"
+if lsof -ti :"$CHROME_PORT" &>/dev/null; then
+  ok "Chrome already running on port $CHROME_PORT"
+else
+  CHROME_BIN=""
+  for p in \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+    "$(command -v google-chrome 2>/dev/null)" \
+    "$(command -v chromium-browser 2>/dev/null)" \
+    "$(command -v chromium 2>/dev/null)"; do
+    [[ -x "$p" ]] && CHROME_BIN="$p" && break
+  done
+  if [[ -n "$CHROME_BIN" ]]; then
+    info "Starting Chrome with remote debugging on port $CHROME_PORT..."
+    "$CHROME_BIN" \
+      --remote-debugging-port="$CHROME_PORT" \
+      --no-first-run \
+      --no-default-browser-check \
+      --headless=new \
+      2>/dev/null &
+    sleep 1
+    lsof -ti :"$CHROME_PORT" &>/dev/null && ok "Chrome started (headless, port $CHROME_PORT)" || warn "Chrome failed to start"
+  else
+    warn "Chrome not found — browser tool disabled (install Chrome or set CHROME_PORT=0 to skip)"
+  fi
+fi
+export CHROME_HOST="${CHROME_HOST:-localhost}"
+export CHROME_PORT
+
+# ── 9. Start dev server ───────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}═══════════════════════════════════════${RESET}"
 echo -e "${GREEN}${BOLD}  Starting Sandra dev server on :${PORT:-3000}${RESET}"

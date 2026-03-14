@@ -4,6 +4,14 @@ import { BEDROCK_VERSION } from "@sandra/core";
 import { getSoul } from "./soul.js";
 import { bedrock } from "./bedrock-client.js";
 import { TOOL_DEFINITIONS } from "./tool-registry.js";
+
+function getAvailableTools() {
+  return TOOL_DEFINITIONS.filter((t) => {
+    if (t.name === "web_search" && !process.env["PERPLEXITY_API_KEY"]) return false;
+    if (t.name === "browser" && process.env["CHROME_PORT"] === "0") return false;
+    return true;
+  });
+}
 import { executeTool } from "./tool-executor.js";
 import { detectToolLoop, hashToolInput } from "./tool-loop-detection.js";
 import type { ToolInvocation } from "./tool-loop-detection.js";
@@ -65,7 +73,7 @@ export async function reason(
       max_tokens: 1024,
       system: systemPrompt,
       messages,
-      tools: TOOL_DEFINITIONS,
+      tools: getAvailableTools(),
       tool_choice: { type: "auto" },
     });
 
