@@ -12,6 +12,8 @@ export interface AcpRequest {
   sessionId?: string;
   /** Maximum tokens for the sub-agent response */
   maxTokens?: number;
+  /** Current nesting depth — used to enforce MAX_SUBAGENT_DEPTH */
+  depth?: number;
 }
 
 export interface AcpResponse {
@@ -51,9 +53,21 @@ export function _setHandleMessage(fn: HandleMessageFn): void {
  * Uses handleMessage internally so the sub-agent has full capabilities
  * (memory, tools, reasoning) but operates independently.
  */
+const MAX_SUBAGENT_DEPTH = 3;
+
 export async function callAgent(request: AcpRequest): Promise<AcpResponse> {
-  const { agentName, task, userId = "system", maxTokens: _maxTokens } = request;
+  const { agentName, task, userId = "system", maxTokens: _maxTokens, depth = 0 } = request;
   void _maxTokens; // reserved for future use
+
+  if (depth >= MAX_SUBAGENT_DEPTH) {
+    const sessionId = request.sessionId ?? `acp:${agentName}:blocked`;
+    return {
+      agentName,
+      result: JSON.stringify({ error: "Maximum subagent depth exceeded" }),
+      sessionId,
+      durationMs: 0,
+    };
+  }
 
   const sessionId =
     request.sessionId ?? `acp:${agentName}:${randomBytes(8).toString("hex")}`;

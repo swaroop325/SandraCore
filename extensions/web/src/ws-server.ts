@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { WebSocketServer, type WebSocket, type RawData } from "ws";
 import type { IncomingMessage } from "http";
 import type { Server } from "http";
@@ -25,34 +26,67 @@ interface ChatSession {
 
 const activeSessions = new Map<string, ChatSession>();
 
+// ── Web session store ─────────────────────────────────────────────────────
+interface WebSession {
+  userId: string;
+  expiresAt: number;
+}
+
+const webSessions = new Map<string, WebSession>();
+
+/**
+ * Issue a short-lived opaque session token for a userId.
+ * The token is a 32-byte hex string; the raw userId is never sent to the client.
+ */
+export function createWebSession(userId: string): string {
+  const token = randomBytes(32).toString("hex");
+  webSessions.set(token, { userId, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+  return token;
+}
+
 function parseToken(req: IncomingMessage): string | null {
   const url = new URL(req.url ?? "/", "http://localhost");
   return url.searchParams.get("token");
 }
 
 /**
- * Validate a user token against the database.
- * For MVP: token is the userId directly. Only approved users may connect.
- * Falls back to env-var token list when database is unavailable.
+ * Validate a session token issued by createWebSession.
+ * Falls back to env-var token list only in non-production environments.
+ * Never fails open — returns null on DB errors.
  */
 async function validateUser(token: string): Promise<{ id: string } | null> {
-  // First try DB validation
-  try {
-    const res = await db.query<{ id: string; status: string }>(
-      "SELECT id, status FROM users WHERE id = $1 LIMIT 1",
-      [token]
-    );
-    const user = res.rows[0];
-    if (!user || user.status !== "approved") return null;
-    return { id: user.id };
-  } catch {
-    // DB unavailable — fall back to env-var allow-list (dev/test convenience)
-    const allowed = process.env["WEB_AUTH_TOKENS"];
-    if (!allowed) return { id: token }; // open in dev with no env set
-    const tokens = allowed.split(",").map((t) => t.trim()).filter(Boolean);
-    if (!tokens.includes(token)) return null;
-    return { id: token };
+  // Check in-memory session store first
+  const session = webSessions.get(token);
+  if (session) {
+    if (Date.now() > session.expiresAt) {
+      webSessions.delete(token);
+      return null;
+    }
+    // Validate the userId still exists and is approved in the DB
+    try {
+      const res = await db.query<{ id: string; status: string }>(
+        "SELECT id, status FROM users WHERE id = $1 LIMIT 1",
+        [session.userId]
+      );
+      const user = res.rows[0];
+      if (!user || user.status !== "approved") return null;
+      return { id: user.id };
+    } catch {
+      // DB unavailable — fail closed
+      return null;
+    }
   }
+
+  // Dev-only env-var allow-list (never permitted in production)
+  if (process.env["NODE_ENV"] !== "production") {
+    const allowed = process.env["WEB_AUTH_TOKENS"];
+    if (allowed) {
+      const tokens = allowed.split(",").map((t) => t.trim()).filter(Boolean);
+      if (tokens.includes(token)) return { id: token };
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -60,7 +94,7 @@ async function validateUser(token: string): Promise<{ id: string } | null> {
  * Accepts connections at /chat/ws?token=<userId>
  */
 export function attachWebSocketServer(httpServer: Server): WebSocketServer {
-  const wss = new WebSocketServer({ server: httpServer, path: "/chat/ws" });
+  const wss = new WebSocketServer({ server: httpServer, path: "/chat/ws", maxPayload: 65536 });
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     const token = parseToken(req);
@@ -135,13 +169,18 @@ async function handleWebMessage(connId: string, data: RawData): Promise<void> {
     return;
   }
 
+  if (text.length > 4096) {
+    ws.send(JSON.stringify({ type: "error", text: "Message too long (max 4096 characters)" } satisfies WebChatMessage));
+    return;
+  }
+
   void auditLog({ action: "message.received", userId, sessionId, channel: "web" });
 
   if (process.env["WEB_STREAMING"] === "1") {
     // Streaming path: send chunks live
     try {
       const [history, memories] = await Promise.all([
-        loadHistory(sessionId),
+        loadHistory(sessionId, userId),
         recallMemory(userId, text.trim()),
       ]);
 

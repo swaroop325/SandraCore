@@ -9,6 +9,9 @@
     "test": "vitest run --passWithNoTests",
     "lint": "tsc --noEmit"
   },
+  "dependencies": {
+    "@sandra/utils": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"

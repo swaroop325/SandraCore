@@ -1,6 +1,7 @@
 import { loadSecrets, createSubsystemLogger } from "@sandra/utils";
 import { initOtel } from "@sandra/otel";
-import { createScheduler, createDbCronStore, createAgentExecutor } from "@sandra/cron";
+import { createScheduler, createDbCronStore, createAgentExecutor, registerChannelSender } from "@sandra/cron";
+import { sendTelegram } from "@sandra/extensions-telegram";
 import { registerWorkerShutdown } from "./graceful-shutdown.js";
 
 const log = createSubsystemLogger("cron-consumer");
@@ -8,6 +9,10 @@ const log = createSubsystemLogger("cron-consumer");
 await loadSecrets();
 initOtel("sandra-cron-worker");
 registerWorkerShutdown();
+
+registerChannelSender("telegram", async (recipientId: string, text: string) => {
+  await sendTelegram(Number(recipientId), text);
+});
 
 const store = createDbCronStore();
 const executor = createAgentExecutor();

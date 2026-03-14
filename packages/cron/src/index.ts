@@ -6,3 +6,5 @@ export { createDbCronStore } from "./db-store.js";
 export { createAgentExecutor } from "./agent-executor.js";
 export type { CronSchedule, CronDelivery, CronDeliveryMode } from "./types.js";
 export { normalizeSchedule, nextOccurrenceForSchedule } from "./schedule-helpers.js";
+export { registerChannelSender, deliverCronReply } from "./delivery.js";
+export type { DeliverCronReplyOpts } from "./delivery.js";

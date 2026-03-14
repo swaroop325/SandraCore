@@ -1,5 +1,7 @@
-import { db } from "./db.js";
+import { randomBytes } from "node:crypto";
+import { db, withTransaction } from "./db.js";
 import { auditLog } from "./audit.js";
+import { sha256Hex } from "./crypto.js";
 
 // Human-friendly alphabet — no ambiguous characters (0/O, 1/I/l)
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -7,10 +9,9 @@ const CODE_LENGTH = 8;
 const TTL_MS = 60 * 60 * 1000; // 1 hour
 const MAX_PENDING_PER_USER = 3;
 
-/** Generate a cryptographically random pairing code */
+/** Generate a cryptographically random pairing code using node:crypto randomBytes */
 export function generatePairingCode(): string {
-  const bytes = new Uint8Array(CODE_LENGTH);
-  crypto.getRandomValues(bytes);
+  const bytes = randomBytes(CODE_LENGTH);
   return Array.from(bytes)
     .map((b) => ALPHABET[b % ALPHABET.length]!)
     .join("");
@@ -78,34 +79,45 @@ export async function redeemPairingCode(
 ): Promise<boolean> {
   const normalised = inputCode.trim().toUpperCase();
 
-  const result = await db.query<{ id: string; telegram_id: string }>(
-    `SELECT id, telegram_id
-     FROM pairing_requests
-     WHERE code = $1
-       AND used_at IS NULL
-       AND expires_at > now()`,
-    [normalised]
-  );
+  // Wrap the lookup-and-redeem in a transaction with SELECT FOR UPDATE to
+  // prevent TOCTOU races where two concurrent requests redeem the same code.
+  const redeemed = await withTransaction(async (client) => {
+    const result = await client.query<{ id: string; telegram_id: string }>(
+      `SELECT id, telegram_id
+       FROM pairing_requests
+       WHERE code = $1
+         AND telegram_id = $2
+         AND used_at IS NULL
+         AND expires_at > now()
+       FOR UPDATE`,
+      [normalised, telegramId]
+    );
 
-  const request = result.rows[0];
-  if (!request) {
+    const request = result.rows[0];
+    if (!request) {
+      return false;
+    }
+
+    // Mark code as used (within same transaction — atomic with the lock)
+    await client.query(
+      `UPDATE pairing_requests SET used_at = now() WHERE id = $1`,
+      [request.id]
+    );
+
+    return true;
+  });
+
+  if (!redeemed) {
     void auditLog({ action: "auth.failure", details: { reason: "invalid_pairing_code" } });
     return false;
   }
 
-  // Mark code as used
-  await db.execute(
-    `UPDATE pairing_requests SET used_at = now() WHERE id = $1`,
-    [request.id]
-  );
-
-  // Approve the user
+  // Approve the user and add to allowlist (outside the lock — these are idempotent)
   await db.execute(
     `UPDATE users SET status = 'approved' WHERE telegram_id = $1`,
     [telegramId]
   );
 
-  // Add to allowlist
   await db.execute(
     `INSERT INTO user_allowlist (user_id, channel)
      SELECT id, 'telegram' FROM users WHERE telegram_id = $1
@@ -113,7 +125,7 @@ export async function redeemPairingCode(
     [telegramId]
   );
 
-  void auditLog({ action: "pairing.redeemed", details: { code: normalised, channel: "telegram" } });
+  void auditLog({ action: "pairing.redeemed", details: { codeHash: sha256Hex(normalised), channel: "telegram" } });
   return true;
 }
 

@@ -45,7 +45,35 @@ vi.mock("@sandra/utils", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   })),
-  db: { execute: vi.fn() },
+  db: { execute: vi.fn(), query: vi.fn().mockResolvedValue({ rows: [] }) },
+  looksLikeSecret: vi.fn(() => false),
+  auditLog: vi.fn(),
+}));
+
+vi.mock("@sandra/memory", () => ({
+  recallMemory: vi.fn().mockResolvedValue([]),
+  writeMemory: vi.fn().mockResolvedValue(undefined),
+  forgetMemory: vi.fn().mockResolvedValue(undefined),
+  forgetAllMemories: vi.fn().mockResolvedValue(undefined),
+  loadHistory: vi.fn().mockResolvedValue([]),
+  clearHistory: vi.fn().mockResolvedValue(undefined),
+  appendMessage: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@sandra/cron", () => ({
+  createDbCronStore: vi.fn(() => ({
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn().mockResolvedValue("job-id"),
+    delete: vi.fn().mockResolvedValue(undefined),
+    disable: vi.fn().mockResolvedValue(undefined),
+    enable: vi.fn().mockResolvedValue(undefined),
+  })),
+  normalizeSchedule: vi.fn((s: unknown) => s),
+  nextOccurrenceForSchedule: vi.fn(() => new Date()),
+}));
+
+vi.mock("@sandra/browser", () => ({
+  browserAction: vi.fn().mockResolvedValue({ success: true, data: "mock" }),
 }));
 
 vi.mock("./soul.js", () => ({

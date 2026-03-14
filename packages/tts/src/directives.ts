@@ -2,11 +2,17 @@
  * TTS directives: inline tags in text that control TTS behavior.
  *
  * Supported tags:
- *   [[tts:skip]]          — skip TTS for this message entirely
- *   [[tts:voice:NAME]]    — use specific voice (e.g. [[tts:voice:en-GB-SoniaNeural]])
- *   [[tts:rate:+20%]]     — set speech rate
- *   [[tts:pitch:+5Hz]]    — set pitch
- *   [[tts:lang:es]]       — set language hint
+ *   [[tts:skip]]                    — skip TTS for this message entirely
+ *   [[tts:voice:NAME]]              — use specific voice (e.g. [[tts:voice:en-GB-SoniaNeural]])
+ *   [[tts:rate:+20%]]               — set speech rate
+ *   [[tts:pitch:+5Hz]]              — set pitch
+ *   [[tts:lang:es]]                 — set language hint
+ *   [[tts:stability:0.7]]           — ElevenLabs voice stability (0.0–1.0)
+ *   [[tts:similarity_boost:0.8]]    — ElevenLabs similarity boost (0.0–1.0)
+ *   [[tts:style:0.3]]               — ElevenLabs style exaggeration (0.0–1.0)
+ *   [[tts:speed:1.1]]               — ElevenLabs speaking speed multiplier (0.7–1.2)
+ *   [[tts:use_speaker_boost:true]]  — ElevenLabs speaker boost toggle
+ *   [[tts:seed:42]]                 — ElevenLabs deterministic seed
  */
 
 export interface TtsDirectives {
@@ -15,6 +21,12 @@ export interface TtsDirectives {
   rate?: string;
   pitch?: string;
   lang?: string;
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  speed?: number;
+  useSpeakerBoost?: boolean;
+  seed?: number;
 }
 
 /** Regex to match [[tts:...]] directives */
@@ -55,6 +67,34 @@ export function parseTtsDirectives(text: string): {
         case "lang":
           if (arg !== undefined) directives.lang = arg;
           break;
+        case "stability": {
+          const v = parseFloat(arg ?? "");
+          if (!isNaN(v)) directives.stability = v;
+          break;
+        }
+        case "similarity_boost": {
+          const v = parseFloat(arg ?? "");
+          if (!isNaN(v)) directives.similarityBoost = v;
+          break;
+        }
+        case "style": {
+          const v = parseFloat(arg ?? "");
+          if (!isNaN(v)) directives.style = v;
+          break;
+        }
+        case "speed": {
+          const v = parseFloat(arg ?? "");
+          if (!isNaN(v)) directives.speed = v;
+          break;
+        }
+        case "use_speaker_boost":
+          if (arg !== undefined) directives.useSpeakerBoost = arg.toLowerCase() === "true";
+          break;
+        case "seed": {
+          const v = parseInt(arg ?? "", 10);
+          if (!isNaN(v)) directives.seed = v;
+          break;
+        }
       }
 
       return ""; // Remove directive from text

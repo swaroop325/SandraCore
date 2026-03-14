@@ -164,7 +164,7 @@ function buildAuthClient(credentials: GmailWatchConfig["credentials"]) {
     credentials.redirect_uri
   );
   oauth2.setCredentials({
-    access_token: credentials.access_token,
+    access_token: credentials.access_token ?? null,
     refresh_token: credentials.refresh_token,
   });
   return oauth2;

@@ -1,21 +1,33 @@
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("discord.js", () => ({
-  Client: vi.fn().mockImplementation(() => ({
-    once: vi.fn(),
-    on: vi.fn(),
-    login: vi.fn().mockResolvedValue("mock-token"),
-    channels: { fetch: vi.fn() },
-  })),
-  GatewayIntentBits: {
-    DirectMessages: 1,
-    MessageContent: 2,
-    Guilds: 4,
-    GuildMessages: 8,
-  },
-  Events: { ClientReady: "ready", MessageCreate: "messageCreate" },
-  Partials: { Channel: 0, Message: 1 },
-}));
+vi.mock("discord.js", () => {
+  const SlashCommandBuilder = vi.fn().mockImplementation(() => ({
+    setName: vi.fn().mockReturnThis(),
+    setDescription: vi.fn().mockReturnThis(),
+    addStringOption: vi.fn().mockReturnThis(),
+    toJSON: vi.fn().mockReturnValue({}),
+  }));
+  return {
+    Client: vi.fn().mockImplementation(() => ({
+      once: vi.fn(),
+      on: vi.fn(),
+      login: vi.fn().mockResolvedValue("mock-token"),
+      channels: { fetch: vi.fn() },
+    })),
+    GatewayIntentBits: {
+      DirectMessages: 1,
+      MessageContent: 2,
+      Guilds: 4,
+      GuildMessages: 8,
+    },
+    Events: { ClientReady: "ready", MessageCreate: "messageCreate", InteractionCreate: "interactionCreate" },
+    Partials: { Channel: 0, Message: 1 },
+    InteractionType: { ApplicationCommand: 2 },
+    REST: vi.fn().mockImplementation(() => ({ setToken: vi.fn().mockReturnThis(), put: vi.fn().mockResolvedValue([]) })),
+    Routes: { applicationCommands: vi.fn(() => "/commands"), applicationGuildCommands: vi.fn(() => "/guild-commands") },
+    SlashCommandBuilder,
+  };
+});
 
 vi.mock("@sandra/utils", () => ({
   createSubsystemLogger: () => ({

@@ -273,7 +273,7 @@ describe("handleWebhookInbound", () => {
     await handleWebhookInbound(req as any, res as any);
 
     expect(res._status).toBe(500);
-    expect((res._body as any).error).toBe("Agent blew up");
+    expect((res._body as any).error).toBe("Internal server error");
   });
 
   it("logs security violation audit entry on invalid signature", async () => {

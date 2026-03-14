@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto, { timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { db, auditLog } from "@sandra/utils";
 import { handleMessage } from "@sandra/agent";
@@ -46,7 +46,11 @@ export async function handleWebhookInbound(req: Request, res: Response): Promise
     .digest("hex");
 
   const providedSig = req.headers["x-hook-signature"];
-  if (typeof providedSig !== "string" || providedSig !== expectedSig) {
+  const sigMismatch =
+    typeof providedSig !== "string" ||
+    providedSig.length !== expectedSig.length ||
+    !timingSafeEqual(Buffer.from(providedSig), Buffer.from(expectedSig));
+  if (sigMismatch) {
     void auditLog({
       action: "security.violation",
       userId: hook.user_id,
@@ -84,7 +88,7 @@ export async function handleWebhookInbound(req: Request, res: Response): Promise
     // 7. Respond with reply
     res.status(200).json({ ok: true, reply: response.reply });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Internal error";
-    res.status(500).json({ error: msg });
+    console.error("[webhooks] handleWebhookInbound error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -18,6 +18,15 @@ export interface TtsOptions {
   rate?: string;
   /** Pitch hint, e.g. "+5Hz". Passed to edge provider. */
   pitch?: string;
+  /** ElevenLabs-specific voice settings */
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  speed?: number;
+  useSpeakerBoost?: boolean;
+  seed?: number;
+  /** If true, summarize long text before TTS (texts > 500 chars). Default: false. */
+  summarize?: boolean;
 }
 
 export interface TtsResult {
@@ -36,7 +45,12 @@ export interface TtsResult {
  * 4. fallback → system (returns null)
  */
 export async function textToSpeech(options: TtsOptions): Promise<TtsResult> {
-  const { text, provider: explicitProvider } = options;
+  let { text, provider: explicitProvider } = options;
+
+  // Summarize (truncate) long text when requested
+  if (options.summarize === true && text.length > 500) {
+    text = text.slice(0, 500) + " [...]";
+  }
 
   const elevenLabsKey = process.env["ELEVENLABS_API_KEY"];
   const openaiKey = process.env["OPENAI_API_KEY"];
@@ -62,7 +76,15 @@ export async function textToSpeech(options: TtsOptions): Promise<TtsResult> {
       return { success: false, error: "ELEVENLABS_API_KEY not set" };
     }
     // Note: ElevenLabs voice is controlled via ELEVENLABS_VOICE_ID env var in the provider.
-    audio = await elevenlabsTts(text, { apiKey: elevenLabsKey });
+    audio = await elevenlabsTts(text, {
+      apiKey: elevenLabsKey,
+      stability: options.stability,
+      similarityBoost: options.similarityBoost,
+      style: options.style,
+      speed: options.speed,
+      useSpeakerBoost: options.useSpeakerBoost,
+      seed: options.seed,
+    });
   } else if (provider === "openai") {
     if (openaiKey === undefined) {
       return { success: false, error: "OPENAI_API_KEY not set" };

@@ -6,6 +6,13 @@ const translations: Record<string, Record<string, string>> = {
     user_blocked: "You are not authorized to use Sandra.",
     research_error: "I couldn't complete that research. Please try again.",
     voice_not_supported: "Sorry, I couldn't transcribe that voice message.",
+    not_approved: "You are not yet approved. Contact the administrator for access.",
+    error_retry: "Sorry, something went wrong. Please try again.",
+    welcome: "Hello! I'm Sandra, your personal AI assistant. How can I help you today?",
+    task_reminder: "Reminder: {task}",
+    memory_saved: "I'll remember that.",
+    session_expired: "Your session has expired. Please send a new message to continue.",
+    processing: "Let me think about that...",
   },
   hi: {
     pairing_required: "Sandra का उपयोग करने के लिए pairing code चाहिए। /pair <code> भेजें।",
@@ -14,6 +21,13 @@ const translations: Record<string, Record<string, string>> = {
     user_blocked: "आप Sandra का उपयोग करने के लिए अधिकृत नहीं हैं।",
     research_error: "वह research पूरी नहीं हो सकी। कृपया पुनः प्रयास करें।",
     voice_not_supported: "क्षमा करें, वह voice message transcribe नहीं हो सका।",
+    not_approved: "आपको अभी तक अनुमति नहीं मिली है। एक्सेस के लिए व्यवस्थापक से संपर्क करें।",
+    error_retry: "क्षमा करें, कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
+    welcome: "नमस्ते! मैं सैंड्रा हूँ, आपका व्यक्तिगत AI सहायक। आज मैं आपकी कैसे मदद कर सकती हूँ?",
+    task_reminder: "अनुस्मारक: {task}",
+    memory_saved: "मैं यह याद रखूँगी।",
+    session_expired: "आपका सत्र समाप्त हो गया है। जारी रखने के लिए एक नया संदेश भेजें।",
+    processing: "मुझे इस पर विचार करने दें...",
   },
 };
 

@@ -12,5 +12,11 @@ module.exports = {
       instances: 1,
       env: { CHANNEL: "stable", NODE_ENV: "production" },
     },
+    {
+      name: "sandra-cron",
+      script: "apps/worker/dist/cron-consumer.js",
+      instances: 1,
+      env: { CHANNEL: "stable", NODE_ENV: "production" },
+    },
   ],
 };

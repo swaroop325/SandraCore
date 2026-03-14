@@ -15,17 +15,17 @@ vi.mock("@sandra/utils", () => ({
 describe("loadHistory", () => {
   it("returns messages in chronological order", async () => {
     const { loadHistory } = await import("./short-term.js");
-    const msgs = await loadHistory("tg:123");
+    const msgs = await loadHistory("tg:123", "user-1");
     expect(msgs[0]?.role).toBe("user");
     expect(msgs[1]?.role).toBe("assistant");
   });
 
-  it("passes sessionId and limit to query", async () => {
+  it("passes sessionId, userId, and limit to query", async () => {
     const { loadHistory } = await import("./short-term.js");
-    await loadHistory("tg:456", 10);
+    await loadHistory("tg:456", "user-1", 10);
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("WHERE session_id"),
-      ["tg:456", 10]
+      ["tg:456", "user-1", 10]
     );
   });
 });

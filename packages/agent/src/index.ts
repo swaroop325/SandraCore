@@ -42,7 +42,7 @@ export async function handleMessage(input: AssistantInput): Promise<AssistantOut
       // Load history, memories, model override, and URL context in parallel
       const [history, memories, modelOverride, urlContext] = await trace("memory.load", async () =>
         Promise.all([
-          loadHistory(sessionId),
+          loadHistory(sessionId, userId),
           recallMemory(userId, text),
           getUserModelOverride(userId),
           buildUrlContext(text),

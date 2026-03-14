@@ -3,6 +3,7 @@ import {
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 import { REGION, MODELS } from "@sandra/core";
+import { createEmbeddingCache } from "./embedding-cache.js";
 
 export interface EmbeddingProvider {
   name: string;
@@ -225,9 +226,28 @@ export function createMistralEmbeddingProvider(options: {
 // --- Registry ---
 
 let _provider: EmbeddingProvider | null = null;
+let _cache: ReturnType<typeof createEmbeddingCache> | null = null;
+
+function getCache(): ReturnType<typeof createEmbeddingCache> {
+  if (_cache === null) {
+    const cachePath = process.env["EMBEDDING_CACHE_PATH"];
+    _cache = createEmbeddingCache(cachePath);
+  }
+  return _cache;
+}
 
 export function setEmbeddingProvider(provider: EmbeddingProvider): void {
-  _provider = provider;
+  const cache = getCache();
+  _provider = {
+    ...provider,
+    embed: async (text: string) => {
+      const cached = cache.get(text);
+      if (cached !== null) return cached;
+      const vector = await provider.embed(text);
+      cache.set(text, vector);
+      return vector;
+    },
+  };
 }
 
 export function getEmbeddingProvider(): EmbeddingProvider {
@@ -284,6 +304,6 @@ export function autoConfigureEmbeddingProvider(): EmbeddingProvider {
     provider = createBedrockEmbeddingProvider();
   }
 
-  _provider = provider;
-  return provider;
+  setEmbeddingProvider(provider);
+  return _provider!;
 }

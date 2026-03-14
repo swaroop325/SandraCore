@@ -28,7 +28,8 @@
     "@sandra/tasks": "workspace:*",
     "@sandra/tools": "workspace:*",
     "@sandra/otel": "workspace:*",
-    "@sandra/utils": "workspace:*"
+    "@sandra/utils": "workspace:*",
+    "@sandra/browser": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

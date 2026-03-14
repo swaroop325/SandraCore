@@ -1,5 +1,5 @@
 export { loadSecrets, _resetSecretsLoader } from "./secrets.js";
-export { db, checkDB, closeDB } from "./db.js";
+export { db, checkDB, closeDB, withTransaction } from "./db.js";
 export { sqsClient, checkSQS } from "./sqs.js";
 export { logger, createSubsystemLogger, registerSecretForRedaction, unregisterSecretFromRedaction, _clearLoggerCache } from "./logger.js";
 export type { SubsystemLogger } from "./logger.js";

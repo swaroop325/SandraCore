@@ -6,10 +6,12 @@ import {
   type WASocket,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { createSubsystemLogger, db, auditLog } from "@sandra/utils";
 import { handleMessage } from "@sandra/agent";
+import { transcribeAudio } from "@sandra/media";
 
 const log = createSubsystemLogger("whatsapp");
 
@@ -79,12 +81,12 @@ export async function startWhatsApp(): Promise<void> {
   sock.ev.on("messages.upsert", async ({ messages, type }: { messages: WAMessage[]; type: string }) => {
     if (type !== "notify") return;
     for (const msg of messages) {
-      await handleIncomingMessage(msg);
+      await handleIncomingMessage(msg, sock);
     }
   });
 }
 
-async function handleIncomingMessage(msg: WAMessage): Promise<void> {
+async function handleIncomingMessage(msg: WAMessage, sock: WASocket): Promise<void> {
   if (!msg.message) return;
   if (msg.key.fromMe) return; // skip self-sent messages
 
@@ -100,12 +102,16 @@ async function handleIncomingMessage(msg: WAMessage): Promise<void> {
   const normalizedJid = getJid(jid);
   const phone = getPhone(normalizedJid);
 
+  const messageType = Object.keys(msg.message)[0];
+
   const text =
     msg.message.conversation ??
     msg.message.extendedTextMessage?.text ??
     msg.message.ephemeralMessage?.message?.conversation;
 
-  if (!text) return;
+  const isAudio = messageType === "audioMessage";
+
+  if (!text && !isAudio) return;
 
   try {
     const userId = await upsertUserByPhone(phone);
@@ -118,10 +124,32 @@ async function handleIncomingMessage(msg: WAMessage): Promise<void> {
     }
 
     const sessionId = `wa:${normalizedJid}`;
+
+    let messageText: string;
+
+    if (isAudio) {
+      log.debug("Handling audio message", { phone });
+      const buffer = await downloadMediaMessage(
+        msg,
+        "buffer",
+        {},
+        { logger: log as any, reuploadRequest: sock.updateMediaMessage }
+      ) as Buffer;
+      const mimeType = msg.message?.audioMessage?.mimetype ?? "audio/ogg; codecs=opus";
+      const transcript = await transcribeAudio(buffer, mimeType);
+      if (!transcript) {
+        await sendWhatsApp(normalizedJid, "Voice messages are not supported yet.");
+        return;
+      }
+      messageText = transcript;
+    } else {
+      messageText = text!;
+    }
+
     void auditLog({ action: "message.received", userId, channel: "whatsapp" });
     const response = await handleMessage({
       id: crypto.randomUUID(),
-      text,
+      text: messageText,
       userId,
       sessionId,
       channel: "whatsapp",

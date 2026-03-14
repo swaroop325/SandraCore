@@ -9,6 +9,7 @@ function makeFtsStore(results: FtsMemory[]): FtsStore {
     insert: vi.fn(),
     search: vi.fn().mockReturnValue(results),
     delete: vi.fn(),
+    deleteAll: vi.fn(),
     close: vi.fn(),
   };
 }

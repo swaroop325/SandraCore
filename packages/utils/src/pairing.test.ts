@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockExecute = vi.fn().mockResolvedValue({ rowCount: 1 });
-const mockQuery = vi.fn();
+const { mockExecute, mockQuery, mockWithTransaction, mockClientQuery } = vi.hoisted(() => {
+  const mockClientQuery = vi.fn();
+  const mockClient = { query: mockClientQuery, execute: vi.fn() };
+  const mockExecute = vi.fn().mockResolvedValue({ rowCount: 1 });
+  const mockQuery = vi.fn();
+  const mockWithTransaction = vi.fn().mockImplementation(async (fn: (client: typeof mockClient) => Promise<unknown>) => fn(mockClient));
+  return { mockExecute, mockQuery, mockWithTransaction, mockClientQuery };
+});
 
 vi.mock("./db.js", () => ({
   db: { execute: mockExecute, query: mockQuery },
+  withTransaction: mockWithTransaction,
 }));
 
 beforeEach(() => {
@@ -65,37 +72,40 @@ describe("createPairingRequest", () => {
 
 describe("redeemPairingCode", () => {
   it("returns false for unknown code", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockClientQuery.mockResolvedValueOnce({ rows: [] });
     const { redeemPairingCode } = await import("./pairing.js");
     const result = await redeemPairingCode("INVALID1", 123456789);
     expect(result).toBe(false);
   });
 
   it("returns true and approves user for valid code", async () => {
-    mockQuery.mockResolvedValueOnce({
+    // SELECT FOR UPDATE returns a row
+    mockClientQuery.mockResolvedValueOnce({
       rows: [{ id: "req-uuid", telegram_id: "123456789" }],
     });
+    // UPDATE pairing_requests SET used_at (client.query inside transaction)
+    mockClientQuery.mockResolvedValueOnce({ rowCount: 1 });
     const { redeemPairingCode } = await import("./pairing.js");
     const result = await redeemPairingCode("VALIDCOD", 123456789);
     expect(result).toBe(true);
-    // approve user + allowlist
+    // approve user + allowlist use db.execute outside the transaction
     expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE pairing_requests SET used_at"),
+      expect.stringContaining("UPDATE users SET status = 'approved'"),
       expect.any(Array)
     );
     expect(mockExecute).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE users SET status = 'approved'"),
+      expect.stringContaining("INSERT INTO user_allowlist"),
       expect.any(Array)
     );
   });
 
   it("normalises code to uppercase before lookup", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockClientQuery.mockResolvedValueOnce({ rows: [] });
     const { redeemPairingCode } = await import("./pairing.js");
     await redeemPairingCode("abcd1234", 123456789);
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(mockClientQuery).toHaveBeenCalledWith(
       expect.any(String),
-      ["ABCD1234"]
+      ["ABCD1234", 123456789]
     );
   });
 });

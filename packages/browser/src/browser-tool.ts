@@ -2,6 +2,32 @@ import { createCDPClient, getPages } from "./cdp-client.js";
 import { PageController } from "./page-controller.js";
 import { createSubsystemLogger } from "@sandra/utils";
 
+// ---------------------------------------------------------------------------
+// SSRF protection — block requests to private/loopback/metadata IP ranges.
+// ---------------------------------------------------------------------------
+const SSRF_HOSTNAME_BLOCKLIST = [
+  /^localhost$/i,
+  /^127\.\d+\.\d+\.\d+$/,           // 127.0.0.0/8 loopback
+  /^10\.\d+\.\d+\.\d+$/,            // 10.0.0.0/8 private
+  /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/, // 172.16.0.0/12 private
+  /^192\.168\.\d+\.\d+$/,           // 192.168.0.0/16 private
+  /^169\.254\.\d+\.\d+$/,           // 169.254.0.0/16 link-local / AWS metadata
+  /^::1$/,                           // IPv6 loopback
+  /^\[::1\]$/,
+  /^fd[0-9a-f]{2}:/i,                // IPv6 ULA (fc00::/7)
+];
+
+function isSsrfBlocked(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return SSRF_HOSTNAME_BLOCKLIST.some((re) => re.test(hostname));
+  } catch {
+    // Unparseable URL — block it to be safe
+    return true;
+  }
+}
+
 const log = createSubsystemLogger("browser");
 
 export type BrowserAction =
@@ -60,6 +86,9 @@ export async function browserAction(input: BrowserToolInput): Promise<BrowserToo
     switch (input.action) {
       case "navigate": {
         if (!input.url) return { success: false, error: "url required" };
+        if (isSsrfBlocked(input.url)) {
+          return { success: false, error: "Navigation blocked: URL targets a private or restricted address" };
+        }
         await controller.navigate(input.url);
         const info = await controller.getInfo();
         return { success: true, data: `Navigated to: ${info.title} (${info.url})` };
@@ -84,6 +113,9 @@ export async function browserAction(input: BrowserToolInput): Promise<BrowserToo
         return { success: true, data: `Typed: ${input.text}` };
       }
       case "evaluate": {
+        if (process.env["BROWSER_EVAL_ENABLED"] !== "1") {
+          return { success: false, error: "browser evaluate is disabled" };
+        }
         if (!input.expression) return { success: false, error: "expression required" };
         const result = await controller.evaluate(input.expression);
         return { success: true, data: String(result) };

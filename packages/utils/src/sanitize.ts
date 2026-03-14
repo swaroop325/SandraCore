@@ -33,19 +33,23 @@ export interface SanitizeResult {
 
 /**
  * Scan input text for prompt injection patterns.
- * Returns the (potentially truncated/escaped) text and whether it was flagged.
+ * Returns sanitized text (injection attempts replaced with [BLOCKED]) and
+ * whether it was flagged.
  */
 export function sanitizeInput(text: string): SanitizeResult {
   const patterns: string[] = [];
+  let clean = text;
 
   for (const pattern of INJECTION_PATTERNS) {
+    // Reset lastIndex for global/sticky flags if ever added
     if (pattern.test(text)) {
       patterns.push(pattern.source);
+      clean = clean.replace(pattern, "[BLOCKED]");
     }
   }
 
   return {
-    clean: text,
+    clean,
     flagged: patterns.length > 0,
     patterns,
   };

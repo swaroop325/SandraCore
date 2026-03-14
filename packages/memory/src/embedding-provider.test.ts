@@ -135,7 +135,7 @@ describe("createOpenAIEmbeddingProvider", () => {
 });
 
 describe("setEmbeddingProvider / getEmbeddingProvider", () => {
-  it("round-trips: set then get returns the same provider", async () => {
+  it("round-trips: set then get returns provider with same name and working embed", async () => {
     const { setEmbeddingProvider, getEmbeddingProvider } = await import(
       "./embedding-provider.js"
     );
@@ -145,7 +145,9 @@ describe("setEmbeddingProvider / getEmbeddingProvider", () => {
     };
     setEmbeddingProvider(custom);
     const got = getEmbeddingProvider();
-    expect(got).toBe(custom);
+    // Provider is wrapped with cache — check name and functional behavior
+    expect(got.name).toBe("custom");
+    await expect(got.embed("hello")).resolves.toEqual([1, 2, 3]);
   });
 });
 

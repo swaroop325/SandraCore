@@ -1,9 +1,12 @@
 import express, { type Request, type Response, type NextFunction } from "express";
+import { timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleWebhookInbound } from "./routes/webhooks.js";
 import { handleGmailWebhook } from "./routes/gmail.js";
+import { adminRouter } from "./routes/admin.js";
+import onboardingRouter from "./routes/onboarding.js";
 import { registerGracefulShutdown } from "./graceful-shutdown.js";
 import rateLimit from "express-rate-limit";
 import { initOtel } from "@sandra/otel";
@@ -21,6 +24,9 @@ const chatHtml = readFileSync(
 initOtel("sandra-api");
 await loadSecrets();
 
+if (!process.env["TELEGRAM_BOT_TOKEN"]) {
+  throw new Error("TELEGRAM_BOT_TOKEN is required but not set");
+}
 const bot = createBot(process.env["TELEGRAM_BOT_TOKEN"]!);
 
 // Register Telegram webhook
@@ -43,8 +49,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   );
-  // /chat serves an inline-script HTML page — allow it; all other routes stay strict.
-  if (req.path === "/chat") {
+  // /chat and /onboarding serve inline-script HTML pages — allow it; all other routes stay strict.
+  if (req.path === "/chat" || req.path.startsWith("/onboarding")) {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none';"
@@ -73,14 +79,22 @@ const ALLOWED_ORIGINS = new Set(
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.size > 0 && !ALLOWED_ORIGINS.has(origin)) {
+  if (!origin) { next(); return; } // same-origin, no Origin header
+  if (ALLOWED_ORIGINS.size === 0) {
+    if (process.env["NODE_ENV"] === "production") {
+      res.status(403).json({ error: "CORS not configured" });
+      return;
+    }
+    // dev: allow through
+    next();
+    return;
+  }
+  if (!ALLOWED_ORIGINS.has(origin)) {
     res.status(403).json({ error: "Origin not allowed" });
     return;
   }
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-  }
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Request-ID");
@@ -93,7 +107,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // ── Request ID — correlation across logs ─────────────────────────────────
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const reqId = (req.headers["x-request-id"] as string) || generateRequestId();
+  const clientReqId = req.headers["x-request-id"] as string | undefined;
+  const reqId = (clientReqId && /^[a-zA-Z0-9\-]{1,64}$/.test(clientReqId))
+    ? clientReqId
+    : generateRequestId();
   res.setHeader("X-Request-ID", reqId);
   withRequestId(reqId, next);
 });
@@ -145,6 +162,24 @@ app.post("/webhooks/gmail", (req: Request, res: Response) => {
 // ── Direct REST API ───────────────────────────────────────────────────────
 app.post("/assistant/message", async (req: Request, res: Response) => {
   const ip = getClientIp(req);
+
+  // ── API key authentication ─────────────────────────────────────────────
+  const configuredApiKey = process.env["API_KEY"];
+  if (configuredApiKey) {
+    const authHeader = req.headers["authorization"];
+    const token = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : undefined;
+    if (!token || token.length !== configuredApiKey.length ||
+        !timingSafeEqual(Buffer.from(token), Buffer.from(configuredApiKey))) {
+      void auditLog({ action: "auth.failure", ip, channel: "api", details: { reason: "invalid_api_key" } });
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+  } else {
+    console.warn("[api] WARNING: API_KEY is not set — /assistant/message is unauthenticated");
+  }
+
   const rateResult = apiRateLimiter.check(ip, "assistant");
 
   if (!rateResult.allowed) {
@@ -186,14 +221,15 @@ app.post("/assistant/message", async (req: Request, res: Response) => {
     });
     res.json(response);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Internal error";
-    res.status(500).json({ error: msg });
+    console.error("[api] /assistant/message error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // ── Health check ──────────────────────────────────────────────────────────
 app.get("/health", async (req: Request, res: Response) => {
   const apiKey = process.env["HEALTH_API_KEY"];
+  let authenticated = false;
   if (apiKey) {
     const provided = req.headers["x-api-key"] ?? req.query["key"];
     if (provided !== apiKey) {
@@ -201,13 +237,14 @@ app.get("/health", async (req: Request, res: Response) => {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
+    authenticated = true;
   }
   const [dbOk, sqsOk] = await Promise.all([checkDB(), checkSQS()]);
   res.json({
     db: dbOk,
     sqs: sqsOk,
     status: "ok",
-    channel: process.env["CHANNEL"] ?? "unknown",
+    ...(authenticated ? { channel: process.env["CHANNEL"] ?? "unknown" } : {}),
   });
 });
 
@@ -225,6 +262,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
   next();
 });
+
+// ── Onboarding wizard ────────────────────────────────────────────────────
+app.use("/onboarding", onboardingRouter);
+
+// ── Admin API ─────────────────────────────────────────────────────────────
+app.use("/admin", adminRouter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

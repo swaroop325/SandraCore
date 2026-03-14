@@ -779,27 +779,50 @@ reasonWithProvider(history, text, memories, "llama3:8b")
 │  Network     TLS 1.3 only · ECDHE ciphers · HSTS preload        │
 │              OCSP stapling · server_tokens off                  │
 │                                                                 │
-│  HTTP        CORS → ALLOWED_ORIGINS only                        │
+│  HTTP        CORS → ALLOWED_ORIGINS (fail-closed in prod)       │
 │              CSP  → default-src 'none'; frame-ancestors 'none'  │
 │              TRUST_PROXY=1 required to trust X-Forwarded-For    │
+│              X-Request-ID validated (alphanumeric, max 64 chars)│
 │              WebSocket upgrade → HTTP 426 (separate WS server)  │
+│              WS maxPayload 64KB · message text capped at 4096   │
 │                                                                 │
 │  Auth        Telegram webhook secret header validation          │
 │              DM pairing: status=pending until admin approves    │
-│              60 req/min per IP — no loopback exemptions         │
+│              Pairing code binds to telegram_id · TOCTOU-safe    │
+│              Pairing codes hashed (sha256) in audit log         │
+│              PRNG: randomBytes(16) · 128-bit entropy            │
+│              Bearer token auth on POST /assistant/message       │
+│              Web sessions: opaque 32-byte token (not raw UUID)  │
+│              Fail-closed on DB error (no auth bypass)           │
+│              60 req/min global · 20 req/min auth · 5 pair/15min │
 │              Optional HEALTH_API_KEY gate                       │
 │                                                                 │
 │  Data        AES-256-GCM at rest (DATA_ENCRYPTION_KEY)          │
 │              No .env in production — AWS Secrets Manager only   │
 │              IAM instance role — zero hardcoded keys            │
+│              Secrets redacted from logs after loadSecrets()     │
+│              PostgreSQL SSL enforced in production              │
+│              userId guard on loadHistory/clearHistory queries   │
 │                                                                 │
-│  LLM         sanitizeInput() — 15 regex patterns                │
+│  LLM         sanitizeInput() — 15 patterns → replaces [BLOCKED] │
 │              wrapToolOutput() — marks tool content untrusted    │
+│              Browser/PDF results labeled as untrusted content   │
 │              SOUL.md security section — never reveal system     │
 │              prompt, never comply with jailbreaks               │
 │                                                                 │
-│  Network     webFetch / getLinkPreview SSRF blocklist:          │
-│  Safety      loopback · RFC1918 · 169.254.x.x · metadata IPs   │
+│  Network     SSRF blocklist: loopback · RFC1918 · 169.254.x.x  │
+│  Safety      · metadata IPs — on webFetch, browser navigate    │
+│              browser evaluate disabled by default               │
+│              read_pdf restricted to /tmp or PDF_DIR             │
+│                                                                 │
+│  Webhooks    HMAC-SHA256 with timingSafeEqual comparison        │
+│              Gmail OIDC JWT verification (Google Pub/Sub)       │
+│              Per-hook secrets, admin GET redacts secret column  │
+│                                                                 │
+│  Agent       Subagent depth limit: MAX_SUBAGENT_DEPTH=3        │
+│  Tools       Cron remove/disable/enable: ownership check       │
+│              memory_forget_all: opt-in (ALLOW_FORGET_ALL=1)    │
+│              botName regex-escaped (ReDoS prevention)           │
 │                                                                 │
 │  Audit       auditLog() at 13+ call sites → audit_log table     │
 │              Best-effort: falls back to stdout on DB failure    │
@@ -808,6 +831,23 @@ reasonWithProvider(history, text, memories, "llama3:8b")
 │  Chain       file-type≥21.3.1 (CVE patches)                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Environment variables for security features
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `API_KEY` | Bearer token for `POST /assistant/message` | None (open if unset) |
+| `HEALTH_API_KEY` | Gate on `/health` endpoint | None (open if unset) |
+| `GMAIL_PUBSUB_AUDIENCE` | Expected `aud` claim in Gmail Pub/Sub JWT | None (unverified if unset) |
+| `GMAIL_SERVICE_ACCOUNT` | Expected `email` claim in Gmail Pub/Sub JWT | None (unverified if unset) |
+| `BROWSER_EVAL_ENABLED` | Enable `browser evaluate` tool (`"1"` to enable) | Disabled |
+| `ALLOW_FORGET_ALL` | Enable `memory_forget_all` tool (`"1"` to enable) | Disabled |
+| `PDF_DIR` | Allowed directory for `read_pdf` | `/tmp` only |
+| `DB_SSL` | Force PostgreSQL SSL (`"1"` to enable) | Auto in production |
+| `DB_SSL_REJECT_UNAUTHORIZED` | Set `"false"` for self-signed certs in staging | `true` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | Blocks all in production |
+| `SECRETS_DIR` | Base dir for file-based secrets | `/run/secrets` |
+| `EMBEDDING_CACHE_PATH` | SQLite path for embedding cache | None (no cache) |
 
 ---
 
@@ -988,7 +1028,7 @@ curl https://your-domain.com/health
 ## Testing
 
 ```bash
-pnpm test                          # all 27 packages, 616 tests
+pnpm test                          # all 21 packages, 617 tests
 pnpm test -- --coverage            # with Istanbul v8 coverage
 cd packages/agent && pnpm test     # single package
 ```
@@ -1006,7 +1046,7 @@ cd packages/agent && pnpm test     # single package
 | `@sandra/cron` | 5 test files | Cron parsing, **at/every/cron schedule kinds, TZ/stagger, delivery modes**, scheduling, in-flight dedup |
 | `@sandra/tts` | `index.test.ts` | **ElevenLabs + OpenAI TTS providers, channel-aware output** |
 | `@sandra/markdown` | `formatter.test.ts` | All 5 channel formats, chunk splitting |
-| `@sandra/browser` | `browser-tool.test.ts` | CDP mocked, all 7 actions |
+| `@sandra/browser` | `browser-tool.test.ts` | CDP mocked, all 7 actions, SSRF guard, evaluate opt-in |
 | `@sandra/media` | `image-analysis.test.ts`, `transcribe.test.ts` | Bedrock vision call, AWS Transcribe Streaming |
 | `@sandra/research` | `index.test.ts` | Perplexity response, error handling |
 | `@sandra/tasks` | `index.test.ts`, `reminders.test.ts` | Task insert, SQS enqueue |
@@ -1016,7 +1056,7 @@ cd packages/agent && pnpm test     # single package
 | extensions | `telegram/polls`, `telegram/actions`, `telegram/typing`, `discord/polls`, `discord/actions`, `slack/actions`, `whatsapp/actions`, `msteams/index` | Channel polls, pin/delete/reaction actions |
 
 **All external dependencies mocked.** Zero infrastructure required to run tests.
-**616 tests across 21 packages — all passing.**
+**617 tests across 21 packages — all passing.**
 
 ---
 
@@ -1230,6 +1270,15 @@ This table compares every major capability area.
 
 | Version | Date | Highlights |
 |---|---|---|
+| **0.1.1** | 2026-03-14 | Security hardening — comprehensive audit across all layers |
+| | | CRITICAL: opaque web session tokens · Gmail OIDC JWT verification |
+| | | CRITICAL: DB-down fail-closed · onboarding redeem gate |
+| | | HIGH: timingSafeEqual HMAC · API_KEY auth on REST endpoint |
+| | | HIGH: SSRF on browser navigate · evaluate opt-in · PDF path guard |
+| | | HIGH: cron ownership checks · subagent depth 3 · pairing telegram_id bind |
+| | | MEDIUM: CORS fail-closed · X-Request-ID validation · pairing TOCTOU fix |
+| | | MEDIUM: secrets log redaction · ReDoS fix · PostgreSQL SSL · sanitize blocks |
+| | | 617 tests · all 41 turbo tasks passing |
 | **0.1.0** | 2026-03-14 | Initial release — full production-ready baseline |
 | | | Telegram · WhatsApp · Discord · MS Teams · Slack · Web · Gmail |
 | | | AWS Bedrock (Haiku/Sonnet/Opus) · LanceDB hybrid memory |

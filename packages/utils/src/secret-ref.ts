@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { resolve } from "path";
 
 export type SecretRefFormat = "env" | "file" | "inline";
 
@@ -41,13 +42,20 @@ export function resolveSecretRef(input: string): ResolvedSecret {
       return { value: val, format, ref: `env:${target}` };
     }
     case "file": {
-      // Prevent path traversal
-      const normalised = target.replace(/\.\.\//g, "").replace(/\.\.\\/g, "");
-      if (normalised !== target) {
+      // Reject any path containing ".." before resolving
+      if (target.includes("..")) {
         throw new Error(`Secret ref 'file:${target}' — path traversal detected`);
       }
+      // Resolve to an absolute path and verify it lives under the allowed base
+      const safeBase = process.env["SECRETS_DIR"] ?? "/run/secrets";
+      const resolved = resolve(target);
+      if (!resolved.startsWith(safeBase + "/") && resolved !== safeBase) {
+        throw new Error(
+          `Secret ref 'file:${target}' — resolved path '${resolved}' is outside allowed directory '${safeBase}'`
+        );
+      }
       try {
-        const val = readFileSync(target, "utf-8").trim();
+        const val = readFileSync(resolved, "utf-8").trim();
         if (!val) throw new Error(`file is empty`);
         return { value: val, format, ref: `file:${target}` };
       } catch (err: unknown) {

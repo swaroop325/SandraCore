@@ -3,6 +3,7 @@ import {
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 import { REGION } from "@sandra/core";
+import { registerSecretForRedaction } from "./logger.js";
 
 let client: SecretsManagerClient | null = null;
 
@@ -17,6 +18,7 @@ export async function loadSecrets(): Promise<void> {
   const secrets = JSON.parse(res.SecretString) as Record<string, string>;
   for (const [key, value] of Object.entries(secrets)) {
     process.env[key] = value;
+    registerSecretForRedaction(value);
   }
   loaded = true;
 }

@@ -30,11 +30,13 @@ export function routeMessage(ctx: RoutingContext): RoutingDecision {
   }
 
   const name = botName ?? "Sandra";
+  // Escape any regex special characters in the bot name to prevent ReDoS
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   // Check text-based mention
   const mentionPatterns = [
-    new RegExp(`@${name}\\b`, "i"),
-    new RegExp(`\\b${name}\\b`, "i"),
+    new RegExp(`@${escapedName}\\b`, "i"),
+    new RegExp(`\\b${escapedName}\\b`, "i"),
     /@here\b/i,
   ];
 
@@ -48,7 +50,7 @@ export function routeMessage(ctx: RoutingContext): RoutingDecision {
   // Strip the mention from the text
   const cleanText = text
     .replace(new RegExp(`<@[^>]+>`, "g"), "")
-    .replace(new RegExp(`@${name}\\b`, "gi"), "")
+    .replace(new RegExp(`@${escapedName}\\b`, "gi"), "")
     .replace(/@here\b/gi, "")
     .trim();
 

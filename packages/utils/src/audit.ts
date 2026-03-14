@@ -14,7 +14,10 @@ export type AuditAction =
   | "tool.called"
   | "admin.access"
   | "rate_limit.exceeded"
-  | "security.violation";
+  | "security.violation"
+  | "task.created"
+  | "task.deleted"
+  | "reminder.fired";
 
 export interface AuditEntry {
   userId?: string;

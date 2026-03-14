@@ -213,6 +213,166 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["task"],
     },
   },
+  {
+    name: "memory_search",
+    description:
+      "Search your long-term memory for relevant information. Returns the most semantically relevant stored memories. Use when you need to recall past facts, preferences, or context the user shared previously.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to look up in long-term memory.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of memory results to return (default 5).",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "memory_save",
+    description:
+      "Save an important piece of information to long-term memory. Use when the user shares a preference, personal detail, or fact that should be remembered across conversations.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "The information to save to long-term memory.",
+        },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "memory_forget",
+    description:
+      "Delete a specific memory by its exact text. Use when the user asks you to forget something specific. For forgetting everything use memory_forget_all.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "The exact text of the memory to delete.",
+        },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "memory_forget_all",
+    description:
+      "Delete all stored memories for this user. Use only when the user explicitly asks to forget everything or reset all memory.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "memory_get",
+    description:
+      "Retrieve stored memories matching a text pattern. Returns memories that contain the given substring. Use after memory_search to get the full text of a specific memory, or to check if something specific is already saved.",
+    input_schema: {
+      type: "object",
+      properties: {
+        pattern: {
+          type: "string",
+          description: "Substring to match against stored memories.",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default 5).",
+        },
+      },
+      required: ["pattern"],
+    },
+  },
+  {
+    name: "cron",
+    description:
+      "Manage scheduled tasks (cron jobs). Supports actions: list (list all scheduled tasks), add (create a new scheduled task), remove (delete a task by id), enable (re-enable a paused task), disable (pause a task), status (show next run times).",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["list", "add", "remove", "enable", "disable", "status"],
+          description: "The action to perform on cron jobs.",
+        },
+        id: {
+          type: "string",
+          description: "Job ID — required for remove, enable, and disable actions.",
+        },
+        expression: {
+          type: "string",
+          description: "Cron expression for the add action, e.g. \"0 9 * * 1-5\".",
+        },
+        task: {
+          type: "string",
+          description: "Task description for the add action.",
+        },
+        channel: {
+          type: "string",
+          description: "Delivery channel for the add action. Defaults to current session channel.",
+        },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: "session_status",
+    description:
+      "Get the status of the current session: estimated token usage, approximate cost, session ID, and current model. Useful for the user to monitor usage.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "browser",
+    description:
+      "Control a web browser to automate tasks: navigate to URLs, click elements, type text, take screenshots, extract page text, run JavaScript, or scroll. Requires Chrome running with --remote-debugging-port=9222 (CHROME_HOST / CHROME_PORT env vars). Use for: filling forms, scraping dynamic pages, web automation, capturing screenshots of live pages.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["navigate", "click", "type", "screenshot", "get_text", "evaluate", "scroll"],
+          description: "Browser action to perform.",
+        },
+        url: {
+          type: "string",
+          description: "URL to navigate to (required for 'navigate' action).",
+        },
+        x: {
+          type: "number",
+          description: "X coordinate for 'click' action.",
+        },
+        y: {
+          type: "number",
+          description: "Y coordinate for 'click' action.",
+        },
+        text: {
+          type: "string",
+          description: "Text to type (required for 'type' action).",
+        },
+        expression: {
+          type: "string",
+          description: "JavaScript expression to evaluate (required for 'evaluate' action).",
+        },
+        deltaY: {
+          type: "number",
+          description: "Pixels to scroll vertically (for 'scroll' action, positive = down).",
+        },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 export const TOOL_NAMES = [
@@ -228,6 +388,14 @@ export const TOOL_NAMES = [
   "sessions_history",
   "sessions_send",
   "sessions_spawn",
+  "memory_search",
+  "memory_save",
+  "memory_forget",
+  "memory_forget_all",
+  "memory_get",
+  "cron",
+  "session_status",
+  "browser",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];

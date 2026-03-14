@@ -57,13 +57,24 @@ describe("browserAction", () => {
     expect(r.data).toContain("content");
   });
 
-  it("evaluate returns expression result", async () => {
+  it("evaluate returns expression result when BROWSER_EVAL_ENABLED=1", async () => {
+    process.env["BROWSER_EVAL_ENABLED"] = "1";
     const r = await browserAction({ action: "evaluate", expression: "1+1" });
     expect(r.success).toBe(true);
+    delete process.env["BROWSER_EVAL_ENABLED"];
   });
 
-  it("evaluate fails without expression", async () => {
+  it("evaluate is disabled by default", async () => {
+    delete process.env["BROWSER_EVAL_ENABLED"];
+    const r = await browserAction({ action: "evaluate", expression: "1+1" });
+    expect(r.success).toBe(false);
+    expect((r as { error: string }).error).toContain("disabled");
+  });
+
+  it("evaluate fails without expression when enabled", async () => {
+    process.env["BROWSER_EVAL_ENABLED"] = "1";
     const r = await browserAction({ action: "evaluate" });
     expect(r.success).toBe(false);
+    delete process.env["BROWSER_EVAL_ENABLED"];
   });
 });

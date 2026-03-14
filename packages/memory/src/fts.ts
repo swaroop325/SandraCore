@@ -19,6 +19,7 @@ export interface FtsStore {
   insert(userId: string, text: string, createdAt: Date): void;
   search(userId: string, query: string, limit?: number): FtsMemory[];
   delete(userId: string, text: string): void;
+  deleteAll(userId: string): void;
   close(): void;
 }
 
@@ -88,6 +89,11 @@ export function createFtsStore(dbPath?: string): FtsStore {
         "DELETE FROM memory_fts WHERE userId = ? AND text = ?"
       );
       stmt.run(userId, text);
+    },
+
+    deleteAll(userId: string): void {
+      const stmt = db.prepare("DELETE FROM memory_fts WHERE userId = ?");
+      stmt.run(userId);
     },
 
     close(): void {

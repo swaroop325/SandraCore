@@ -95,6 +95,34 @@ export async function writeMemory(userId: string, text: string): Promise<void> {
 }
 
 /**
+ * Delete all long-term memories for a user (forget everything).
+ */
+export async function forgetAllMemories(userId: string): Promise<void> {
+  const table = await getTable();
+  await table.delete(`userId = '${userId.replace(/'/g, "''")}'`);
+
+  const fts = getFtsStore();
+  if (fts !== null) {
+    fts.deleteAll(userId);
+  }
+}
+
+/**
+ * Delete a specific memory by its text content (exact match).
+ */
+export async function forgetMemory(userId: string, text: string): Promise<void> {
+  const table = await getTable();
+  const escapedUserId = userId.replace(/'/g, "''");
+  const escapedText = text.replace(/'/g, "''");
+  await table.delete(`userId = '${escapedUserId}' AND text = '${escapedText}'`);
+
+  const fts = getFtsStore();
+  if (fts !== null) {
+    fts.delete(userId, text);
+  }
+}
+
+/**
  * Searches LanceDB for the top-k memories most semantically similar to the
  * query, filtered to the given userId.
  * If LANCEDB_FTS_PATH is set, also runs FTS search and fuses results via hybridSearch.

@@ -4,9 +4,13 @@ import {
   type Message,
   Events,
   Partials,
+  InteractionType,
+  type ChatInputCommandInteraction,
 } from "discord.js";
+import { registerSlashCommands, handleSlashCommand } from "./slash-commands.js";
 import { createSubsystemLogger, db, auditLog } from "@sandra/utils";
 import { handleMessage } from "@sandra/agent";
+import { t } from "@sandra/i18n";
 
 const log = createSubsystemLogger("discord");
 
@@ -40,7 +44,7 @@ async function handleDiscordMessage(msg: Message): Promise<void> {
 
     if (user.status !== "approved") {
       void auditLog({ action: "auth.failure", channel: "discord", details: { discordId: msg.author.id } });
-      await msg.reply("You are not yet approved. Contact the administrator for access.");
+      await msg.reply(t("en", "not_approved"));
       return;
     }
 
@@ -74,7 +78,7 @@ async function handleDiscordMessage(msg: Message): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
       userId: msg.author.id,
     });
-    await msg.reply("Sorry, something went wrong. Please try again.").catch(() => {/* ignore */});
+    await msg.reply(t("en", "error_retry")).catch(() => {/* ignore */});
   }
 }
 
@@ -104,6 +108,16 @@ export function createDiscordBot(token: string): Client {
     log.info("Discord bot ready", { tag: c.user.tag });
   });
 
+  async function getUserIdByDiscordId(discordId: string): Promise<string | null> {
+    const phone = `dc:${discordId}`;
+    const res = await db.query<{ id: string; status: string }>(
+      "SELECT id, status FROM users WHERE phone = $1",
+      [phone]
+    );
+    const user = res.rows[0];
+    return user?.status === "approved" ? user.id : null;
+  }
+
   client.on(Events.MessageCreate, (msg) => {
     handleDiscordMessage(msg).catch((err) => {
       log.error("Unhandled Discord message error", {
@@ -112,7 +126,23 @@ export function createDiscordBot(token: string): Client {
     });
   });
 
+  client.on(Events.InteractionCreate, (interaction) => {
+    if (interaction.type !== InteractionType.ApplicationCommand) return;
+    handleSlashCommand(interaction as ChatInputCommandInteraction, getUserIdByDiscordId).catch((err) => {
+      log.error("Slash command error", { error: err instanceof Error ? err.message : String(err) });
+    });
+  });
+
   client.login(token);
+
+  const clientId = process.env["DISCORD_CLIENT_ID"];
+  if (clientId) {
+    const guildId = process.env["DISCORD_GUILD_ID"]; // optional: register to specific guild (instant) vs global (up to 1h)
+    registerSlashCommands(token, clientId, guildId).catch((err) => {
+      log.error("Slash command registration failed", { error: err instanceof Error ? err.message : String(err) });
+    });
+  }
+
   _client = client;
   return client;
 }

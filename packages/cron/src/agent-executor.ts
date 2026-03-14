@@ -1,16 +1,13 @@
 import { handleMessage } from "@sandra/agent";
 import type { CronJob } from "./scheduler.js";
 import { createSubsystemLogger } from "@sandra/utils";
+import { deliverCronReply } from "./delivery.js";
 
 const log = createSubsystemLogger("cron");
 
 /**
- * Creates a JobExecutor that calls handleMessage for each cron job.
- * Returns the reply string from handleMessage.
- *
- * Note: the executor only runs handleMessage and logs the reply.
- * Delivering the reply via the channel adapter (Telegram/WhatsApp) is
- * a future enhancement — look up the user's channel and forward the reply.
+ * Creates a JobExecutor that calls handleMessage for each cron job,
+ * then delivers the reply according to the job's delivery configuration.
  */
 export function createAgentExecutor(): (job: CronJob) => Promise<string> {
   return async (job: CronJob): Promise<string> => {
@@ -28,6 +25,21 @@ export function createAgentExecutor(): (job: CronJob) => Promise<string> {
     });
 
     log.info("Cron job completed", { id: job.id, reply: response.reply.slice(0, 80) });
+
+    await deliverCronReply({
+      reply: response.reply,
+      sessionId,
+      channel: job.channel,
+      ...(job.delivery
+        ? {
+            delivery: {
+              mode: job.delivery.mode,
+              ...(job.delivery.webhookUrl !== undefined ? { webhookUrl: job.delivery.webhookUrl } : {}),
+            },
+          }
+        : {}),
+    });
+
     return response.reply;
   };
 }
