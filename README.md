@@ -3,10 +3,10 @@
 </div>
 
 <div align="center">
-  <img src="assets/icon.jpeg" alt="Sandra icon" width="80" style="border-radius:50%; margin-top:-40px; border:4px solid #0f0f0f;" />
+  <img src="assets/icon.png" alt="Sandra icon" width="80" style="border-radius:50%; margin-top:-40px; border:4px solid #0f0f0f;" />
 
   <h1>SandraCore</h1>
-  <p><strong>Production-grade personal AI assistant — AWS Bedrock · multi-channel · semantic memory</strong></p>
+  <p><strong>Production-grade personal AI assistant — AWS Bedrock · multi-channel · semantic memory · multi-agent · TTS/STT</strong></p>
 
   <p>
     <img src="https://img.shields.io/badge/node-%3E%3D24-brightgreen?logo=node.js&logoColor=white" alt="Node 24+"/>
@@ -15,6 +15,7 @@
     <img src="https://img.shields.io/badge/turborepo-build-EF4444?logo=turborepo&logoColor=white" alt="Turborepo"/>
     <img src="https://img.shields.io/badge/AWS-Bedrock-FF9900?logo=amazon-aws&logoColor=white" alt="AWS Bedrock"/>
     <img src="https://img.shields.io/badge/tests-passing-4CAF50?logo=vitest&logoColor=white" alt="Tests"/>
+    <img src="https://img.shields.io/badge/version-0.1.0-blueviolet" alt="v0.1.0"/>
   </p>
 
   <br/>
@@ -28,7 +29,7 @@
 
 ---
 
-Sandra handles natural conversation, task and reminder management, web research, long-term semantic memory, multi-channel messaging, browser automation, scheduled jobs, multi-provider LLM routing, agentic tool-calling, audio transcription, streaming responses, recurring cron sessions, hybrid FTS+vector memory search, TTS output, webhook inbound triggers, tool loop detection, tool approval policies, auth profile failover, and multi-agent orchestration — all through an intent-driven pipeline that matches model cost to task complexity.
+Sandra handles natural conversation, task and reminder management, web research, long-term semantic memory, multi-channel messaging (Telegram · WhatsApp · Discord · MS Teams · Slack · Web · Gmail), browser automation, scheduled cron jobs, multi-provider LLM routing, agentic tool-calling, audio transcription (STT), text-to-speech (TTS with directives), streaming responses, hybrid FTS+vector memory search, inbound webhook triggers, tool loop detection, tool approval policies, auth profile failover, sub-agent spawning, and multi-agent orchestration — all through an intent-driven pipeline that matches model cost to task complexity.
 
 ---
 
@@ -55,7 +56,7 @@ Sandra handles natural conversation, task and reminder management, web research,
 - [Adding a New Channel](#adding-a-new-channel)
 - [Release Channels](#release-channels)
 - [Observability](#observability)
-- [Deferred Features](#deferred-features)
+- [SandraCore vs openclaw](#sandracore-vs-openclaw)
 
 ---
 
@@ -158,7 +159,7 @@ The built-in web channel (`extensions/web`) ships a zero-dependency dark-mode ch
 | LLM (fast) | AWS Bedrock — `claude-haiku-4-5-20251001` |
 | LLM (deep) | AWS Bedrock — `claude-opus-4-6` |
 | LLM (alt) | Ollama, any OpenAI-compatible API (pluggable) |
-| Embeddings | AWS Bedrock Titan (default) · Ollama · OpenAI-compatible (pluggable) |
+| Embeddings | AWS Bedrock Titan (default) · Ollama · OpenAI-compat · Voyage AI · Google Gemini · Mistral (pluggable) |
 | Research | Perplexity AI — `sonar` model |
 | Messaging | Telegram · WhatsApp · Discord · MS Teams · Slack · Web |
 | Short-term memory | Amazon RDS PostgreSQL + Drizzle ORM |
@@ -184,9 +185,9 @@ sandra-core/
 │   └── icon.jpeg            Sandra icon (1024×1024)
 │
 ├── apps/
-│   ├── api-server/          Express — webhooks · REST API · WebSocket upgrade rejection
+│   ├── api-server/          Express — webhooks · REST API · /chat UI · Gmail Pub/Sub
 │   ├── worker/              SQS long-poll consumer — fires reminders
-│   ├── onboarding/          Web setup wizard (stub)
+│   ├── onboarding/          Web setup wizard
 │   └── voice-gateway/       STT/TTS gateway (stub — needs GPU)
 │
 ├── packages/
@@ -201,29 +202,31 @@ sandra-core/
 │   │                          token counting · context compaction · subagent spawn
 │   │                          multi-provider LLM (Ollama / OpenAI-compat / Bedrock)
 │   ├── memory/              Short-term (Postgres) · long-term (LanceDB + Titan embed)
+│   │                          Hybrid FTS5+vector · MMR+decay · multilingual query expansion
 │   ├── tasks/               Task creation · SQS reminder scheduling
 │   ├── research/            Perplexity sonar client
 │   ├── tools/               webFetch (SSRF-safe) · webSearch · linkPreview · sessionHistory
-│   ├── cron/                Cron expression parser + poll-based scheduler
+│   ├── cron/                Cron expression parser + scheduler · at/every/cron · delivery modes
+│   ├── tts/                 ElevenLabs · OpenAI TTS · Edge TTS · [[tts:]] directives · auto-mode
 │   ├── markdown/            Channel-aware formatter (Telegram / WhatsApp / Discord)
 │   ├── browser/             CDP browser automation (navigate · click · type · screenshot)
 │   ├── plugin-sdk/          Plugin utils (temp files · chunking · locks · status)
-│   ├── media/               Image analysis via Bedrock Titan
+│   ├── media/               Image analysis · AWS Transcribe Streaming (STT)
 │   ├── otel/                OTel traces + metrics + auto-instrumentation
 │   ├── i18n/                Translations + locale detection (en, hi)
 │   ├── config/              Zod-validated config loader
-│   └── voice/               Voice stub (deferred)
+│   └── voice/               Voice stub (deferred — GPU needed)
 │
 ├── extensions/
-│   ├── telegram/            grammY · typing indicators · reactions · DM pairing
+│   ├── telegram/            grammY · typing indicators · reactions · DM pairing · polls
 │   ├── whatsapp/            Baileys (WhatsApp Web) · QR pairing · auto-reconnect
-│   ├── discord/             discord.js · DM + guilds · chunking
+│   ├── discord/             discord.js · DM + guilds · chunking · polls
 │   ├── msteams/             Bot Framework webhook · group mention gating
-│   ├── slack/               Slack Events API
-│   └── web/                 WebSocket server (/ws) · token auth · chat UI ──────┐
-│                                                                                │
-├── extensions/web/public/                                                       │
-│   └── index.html  ◄── self-contained dark-mode chat UI ◄──────────────────────┘
+│   ├── slack/               Bolt.js HTTP mode · DM filter · 3000-char chunking · actions
+│   └── web/                 WebSocket (/chat/ws) · DB auth · streaming · dark-mode UI ──┐
+│                                                                                        │
+├── extensions/web/src/                                                                  │
+│   └── chat-ui.html  ◄── self-contained dark-mode chat UI · served at GET /chat ◄──────┘
 │
 ├── workspace/
 │   ├── SOUL.md              Personality · tone · security constraints
@@ -541,23 +544,36 @@ A plugin is any ESM module that exports `manifest: PluginManifest`, `tools: Plug
 ┌─────────────────────────────────────────────────────────────┐
 │                     Dual-layer memory                       │
 │                                                             │
-│  Short-term (Postgres)          Long-term (LanceDB)         │
-│  ─────────────────────          ─────────────────────────   │
-│  Scoped to sessionId            Scoped to userId            │
-│  Last 20 turns verbatim         Titan embed / Ollama /      │
-│  → directly in LLM history        OpenAI-compat (pluggable) │
-│                                 → cosine search k×3 cands   │
-│                                 → temporal decay (λ=0.01)   │
-│                                 → MMR diversity re-rank      │
-│                                 → top-5 injected into       │
-│                                   system prompt             │
-└─────────────────────────────────────────────────────────────┘
+│  Short-term (Postgres)          Long-term (LanceDB)              │
+│  ─────────────────────          ───────────────────────────────  │
+│  Scoped to sessionId            Scoped to userId                 │
+│  Last 20 turns verbatim         Bedrock Titan / Ollama /         │
+│  → directly in LLM history        OpenAI-compat / Voyage AI /   │
+│                                   Google Gemini / Mistral        │
+│                                 → cosine search k×3 candidates   │
+│                                 → temporal decay (λ=0.01)        │
+│                                 → MMR diversity re-rank           │
+│                                 → top-5 injected into            │
+│                                   system prompt                  │
+│                                                                  │
+│  FTS5 (SQLite)                  Hybrid fusion                    │
+│  ─────────────                  ─────────────────                │
+│  unicode61 tokenizer            0.7 × vector + 0.3 × FTS        │
+│  BM25 ranking                   → score fusion → MMR on result  │
+│  Multilingual stop words        EN · ES · PT · AR · KO · JA/ZH  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 **MMR + Temporal Decay:**
 - Fetch `k×3` candidates by cosine similarity
 - Apply exponential decay: `score × exp(-λ × days_old)` — recent facts score higher
 - MMR greedy re-rank: `α×score - (1-α)×maxSimilarity` — diverse, non-redundant results
+
+**Hybrid FTS+Vector Fusion:**
+- FTS5 BM25 query runs in parallel with vector cosine search
+- Scores normalized independently, combined: `0.7 × vector + 0.3 × FTS`
+- `expandQueryToKeywords(query, locale)` strips stop words per language before FTS query
+- Final MMR pass on fused results ensures diversity
 
 ---
 
@@ -568,7 +584,12 @@ A plugin is any ESM module that exports `manifest: PluginManifest`, `tools: Plug
 | Method | Path | Auth |
 |---|---|---|
 | `POST` | `/webhooks/telegram` | `X-Telegram-Bot-Api-Secret-Token` header |
+| `POST` | `/webhooks/inbound/:hookId` | HMAC-SHA256 `X-Sandra-Signature` |
+| `POST` | `/webhooks/gmail` | Google Pub/Sub push (no auth — responds 200 immediately) |
+| `POST` | `/webhooks/slack` | Bolt.js `signingSecret` verification |
 | `POST` | `/assistant/message` | none (internal use) |
+| `GET` | `/chat` | none — serves dark-mode chat UI |
+| `WS` | `/chat/ws?token=<userId>` | DB-backed user status check |
 | `GET` | `/health` | optional `HEALTH_API_KEY` |
 
 Security hardening built in:
@@ -672,10 +693,12 @@ DM and channel message handling. Scoped to workspace via `SLACK_BOT_TOKEN`.
                      └──────────────┘
 ```
 
-**Migrations:** `0001_initial` → `0002_sessions` → `0003_llm_usage` → `0004_security` (audit_log) → `0005_model_override` → `0006_cron_jobs`
+**Migrations:** `0001_initial` → `0002_sessions` → `0003_llm_usage` → `0004_security` → `0005_model_override` → `0006_cron_jobs` → `0007_cron_schedule` → `0008_users_email`
 
-`0005` adds `model_override VARCHAR(100)` to `user_settings`.
-`0006` adds `cron_jobs` table: `id · user_id · session_id · expression · prompt · channel · enabled · last_run_at · next_run_at`.
+- `0005` — adds `model_override VARCHAR(100)` to `user_settings`
+- `0006` — adds `cron_jobs` table: `id · user_id · session_id · expression · prompt · channel · enabled · last_run_at · next_run_at`
+- `0007` — adds `schedule JSONB · delivery JSONB` to `cron_jobs` (at/every/cron kinds + delivery modes)
+- `0008` — adds `email TEXT UNIQUE` to `users` (required for Gmail Pub/Sub user lookup)
 
 ---
 
@@ -940,9 +963,25 @@ curl https://your-domain.com/health
 | `LOG_LEVEL` | No | Winston log level (default: `info`) |
 | `WEB_STREAMING` | No | `1` to enable streaming WebSocket responses in the web extension |
 | `TRANSCRIBE_LANGUAGE` | No | BCP-47 language code for AWS Transcribe (default: `en-US`) |
-| `EMBEDDING_PROVIDER` | No | `bedrock` (default) · `ollama` · `openai` — selects embedding backend |
-| `OLLAMA_EMBED_MODEL` | No | Ollama model for embeddings (default: `nomic-embed-text`) |
+| `EMBEDDING_PROVIDER` | No | `bedrock` (default) · `ollama` · `openai` · `voyage` · `gemini` · `mistral` |
+| `OLLAMA_EMBED_MODEL` | No | Ollama embedding model (default: `nomic-embed-text`) |
 | `OPENAI_EMBED_MODEL` | No | OpenAI embedding model (default: `text-embedding-3-small`) |
+| `VOYAGE_API_KEY` | No | Voyage AI API key — required when `EMBEDDING_PROVIDER=voyage` |
+| `VOYAGE_EMBED_MODEL` | No | Voyage model (default: `voyage-4-large`) |
+| `GEMINI_API_KEY` | No | Google Gemini API key — required when `EMBEDDING_PROVIDER=gemini` |
+| `GEMINI_EMBED_MODEL` | No | Gemini model (default: `text-embedding-004`) |
+| `MISTRAL_API_KEY` | No | Mistral API key — required when `EMBEDDING_PROVIDER=mistral` |
+| `MISTRAL_EMBED_MODEL` | No | Mistral model (default: `mistral-embed`) |
+| `SLACK_SIGNING_SECRET` | No | Slack app signing secret — required for Slack adapter |
+| `SLACK_BOT_TOKEN` | No | Slack bot token (`xoxb-...`) — required for Slack adapter |
+| `SLACK_ALLOW_CHANNELS` | No | `1` to allow Slack channel messages (default: DMs only) |
+| `GMAIL_TOPIC` | No | GCP Pub/Sub topic name (e.g. `projects/my-proj/topics/gmail`) |
+| `GMAIL_SUBSCRIPTION` | No | GCP Pub/Sub subscription name |
+| `GMAIL_ACCOUNT` | No | Gmail account address to watch |
+| `ELEVENLABS_API_KEY` | No | ElevenLabs TTS API key |
+| `ELEVENLABS_VOICE_ID` | No | ElevenLabs voice ID (default: `EXAVITQu4vr4xnSDxMaL`) |
+| `OPENAI_TTS_VOICE` | No | OpenAI TTS voice (default: `nova`) |
+| `DISCORD_ALLOW_GUILDS` | No | `1` to allow Discord guild/server messages (default: DMs only) |
 
 ---
 
@@ -1069,19 +1108,141 @@ curl https://your-domain.com/health
 
 ---
 
-## Deferred Features
+## SandraCore vs openclaw
 
-| Feature | Location | Blocked on |
+openclaw is the reference open-source AI assistant framework that inspired Sandra's architecture.
+
+### Why SandraCore is different
+
+openclaw is a capable framework, but it was designed around API keys, single-server deployment, and a developer-first workflow. SandraCore is designed to run as a **hardened production personal assistant** on AWS infrastructure with zero operational secrets exposed. Here's what makes it distinct:
+
+**1. Truly cloud-native from day one**
+openclaw uses API keys stored in `.env` files. SandraCore uses AWS IAM instance roles — the server authenticates to Bedrock, SQS, and Secrets Manager with zero credentials anywhere on disk. `sandra/prod` in Secrets Manager is the only source of truth in production.
+
+**2. AWS Bedrock as the LLM backbone**
+openclaw supports many LLM providers but requires API keys for each. SandraCore's primary path is AWS Bedrock with three Claude model tiers (Haiku for classification, Sonnet for reasoning, Opus for deep tasks) — all under the same IAM role, no key rotation, no per-request billing surprises.
+
+**3. Production deployment automation**
+`deploy.sh --setup` provisions a bare Ubuntu Lightsail instance from scratch: Node 24, pnpm, PM2, Nginx with TLS 1.3, HSTS preload, OCSP stapling, and Let's Encrypt — in a single command. openclaw has no equivalent.
+
+**4. Security-first architecture**
+- AES-256-GCM at-rest encryption built into `@sandra/utils`
+- 15-pattern prompt injection detection (`sanitizeInput`)
+- SOUL.md hard constraints the model cannot override
+- Constant-time `safeCompare` for all token comparisons
+- `looksLikeSecret()` Shannon-entropy check prevents credential leaks in tool output
+- Supply chain: `pnpm overrides` pin `esbuild`, `undici`, `file-type` to CVE-patched versions
+
+**5. Hybrid memory that actually works at scale**
+SandraCore's memory layer combines FTS5 full-text search (BM25 ranking) with LanceDB vector search, fuses scores (0.7/0.3), then applies MMR diversity re-ranking and temporal decay. openclaw has vector search; the hybrid fusion, temporal decay, and MMR layer are SandraCore additions.
+
+**6. Six embedding providers, one interface**
+Bedrock Titan, Ollama, OpenAI-compatible, Voyage AI, Google Gemini, Mistral — swap with a single env var. openclaw has a subset of these.
+
+**7. Multilingual from the ground up**
+Query expansion and stop-word filtering supports EN, ES, PT, AR, KO, JA, ZH. openclaw's FTS support is primarily English-optimised.
+
+**8. Complete test isolation**
+616 tests, zero infrastructure required. Every AWS SDK call, database query, and external API is mocked. You can run the full test suite on a laptop with no internet access. openclaw requires running services for integration tests.
+
+---
+
+This table compares every major capability area.
+
+| Capability | openclaw | SandraCore | Notes |
+|---|---|---|---|
+| **Core pipeline** | ✅ handleMessage · intent · tool loop | ✅ Identical pipeline | Debounce, compaction, MMR recall |
+| **Channels — Telegram** | ✅ grammY | ✅ grammY | Voice messages, polls, reactions, DM pairing |
+| **Channels — Discord** | ✅ discord.js | ✅ discord.js | DM + guilds, polls, actions |
+| **Channels — WhatsApp** | ✅ Baileys | ✅ Baileys | QR pairing, auto-reconnect |
+| **Channels — MS Teams** | ✅ Bot Framework | ✅ Bot Framework | Group mention gating |
+| **Channels — Slack** | ✅ Bolt.js | ✅ Bolt.js | HTTP mode, DM filter, chunking |
+| **Channels — Web** | ✅ WebSocket | ✅ WebSocket `/chat/ws` | Dark-mode UI, streaming, DB auth |
+| **Channels — Gmail** | ✅ Pub/Sub watcher | ✅ Pub/Sub watcher | Auto-renew every 12 h, history API |
+| **LLM — AWS Bedrock** | ❌ | ✅ Claude Haiku/Sonnet/Opus | IAM instance role, no hardcoded keys |
+| **LLM — Ollama** | ✅ | ✅ | Pluggable provider |
+| **LLM — OpenAI-compat** | ✅ | ✅ | Custom base URL support |
+| **Intent classification** | ✅ | ✅ | Haiku fast-path classifier |
+| **Model routing** | ✅ complexity → model | ✅ simple/complex/deep | User model override per-user |
+| **Agentic tool loop** | ✅ ≤N turns | ✅ ≤5 turns + forced end_turn | |
+| **Tool loop detection** | ✅ | ✅ | generic_repeat, ping_pong, circuit_breaker |
+| **Tool approval policy** | ✅ | ✅ | allow/deny/require_confirmation |
+| **Subagent depth limit** | ✅ | ✅ | MAX_SUBAGENT_DEPTH=3, AsyncLocalStorage |
+| **sessions_spawn** | ✅ | ✅ | Isolated sub-sessions with unique IDs |
+| **sessions_yield** | ✅ | ❌ | Deferred — low priority |
+| **Multi-agent (ACP)** | ✅ | ✅ | callAgent, parallel, sequential |
+| **Short-term memory** | ✅ Postgres | ✅ Postgres + Drizzle | Per-session, last 20 turns |
+| **Long-term memory (vector)** | ✅ | ✅ LanceDB | MMR + temporal decay |
+| **Memory — Bedrock embed** | ❌ | ✅ Titan Embeddings | Default provider |
+| **Memory — Ollama embed** | ✅ | ✅ | nomic-embed-text default |
+| **Memory — OpenAI embed** | ✅ | ✅ | text-embedding-3-small default |
+| **Memory — Voyage AI** | ✅ voyage-4-large | ✅ voyage-4-large | `EMBEDDING_PROVIDER=voyage` |
+| **Memory — Google Gemini** | ✅ text-embedding-004 | ✅ text-embedding-004 | `EMBEDDING_PROVIDER=gemini` |
+| **Memory — Mistral** | ✅ mistral-embed | ✅ mistral-embed | `EMBEDDING_PROVIDER=mistral` |
+| **Hybrid FTS + vector** | ✅ | ✅ FTS5 + LanceDB | BM25 + cosine, 0.7/0.3 fusion |
+| **Multilingual stop words** | ✅ ES/PT/AR/ZH/KO/JA | ✅ ES/PT/AR/KO/JA/ZH | Script-aware tokenization |
+| **Web search** | ✅ Perplexity | ✅ Perplexity sonar | Grounded answers + citations |
+| **Web fetch** | ✅ SSRF-safe | ✅ SSRF-safe | RFC1918 + metadata blocklist |
+| **Browser automation** | ✅ Puppeteer/CDP | ✅ CDP (no Puppeteer) | navigate/click/type/screenshot |
+| **Code execution** | ✅ Docker sandbox | ✅ Docker sandbox | --network none, --memory 128m |
+| **PDF reading** | ✅ | ✅ pdf-parse | |
+| **Image analysis** | ✅ | ✅ Bedrock Titan vision | |
+| **Voice STT** | ✅ | ✅ AWS Transcribe Streaming | Live on Telegram |
+| **TTS — ElevenLabs** | ✅ | ✅ | Channel-aware MIME |
+| **TTS — OpenAI** | ✅ | ✅ | |
+| **TTS — Edge TTS** | ✅ (proper) | ✅ edge-tts npm + CLI fallback | Microsoft neural free tier |
+| **TTS directives** | ✅ `[[tts:...]]` | ✅ `[[tts:skip\|voice\|rate\|pitch]]` | Inline per-message control |
+| **TTS auto-mode** | ✅ off/always/inbound/tagged | ✅ off/always/inbound/tagged | Per-channel, max length guard |
+| **Cron jobs** | ✅ | ✅ | at/every/cron kinds, TZ, stagger |
+| **Cron delivery modes** | ✅ none/announce/webhook | ✅ none/announce/webhook | |
+| **Task + reminders** | ✅ | ✅ | SQS delayed messages |
+| **Context compaction** | ✅ | ✅ | Haiku summarises old turns |
+| **Inbound webhooks** | ✅ | ✅ HMAC-SHA256 | `/webhooks/inbound/:hookId` |
+| **Plugin SDK** | ✅ 13+ files | ✅ | loadPlugin, createPluginRegistry |
+| **Auth profiles** | ✅ | ✅ | Round-robin + cooldown + failover |
+| **AES-256-GCM encryption** | ❌ | ✅ | encrypt/decrypt in utils |
+| **Prompt injection defence** | ✅ | ✅ 15 patterns | sanitizeInput + SOUL.md constraints |
+| **Rate limiting** | ✅ | ✅ | 60 req/min per IP, no loopback exemption |
+| **Audit log** | ✅ | ✅ | 13+ call sites, DB + stdout fallback |
+| **OTel traces + metrics** | ✅ | ✅ | OTLP export, auto-instrumentation |
+| **i18n** | ✅ | ✅ en + hi | t(locale, key) with fallbacks |
+| **IAM instance role auth** | ❌ (API key) | ✅ | Zero hardcoded credentials |
+| **AWS Secrets Manager** | ❌ | ✅ `sandra/prod` | No .env in production |
+| **PM2 + Nginx deployment** | ❌ | ✅ | TLS 1.3, HSTS preload, OCSP stapling |
+| **Voice gateway (GPU TTS)** | ✅ VibeVoice | Stub | Deferred — needs GPU instance |
+| **Canvas / whiteboard tool** | ✅ | ❌ | Not applicable to assistant use case |
+| **sessions_yield** | ✅ | ❌ | Planned |
+
+### Where SandraCore goes further than openclaw
+
+| Area | SandraCore advantage |
+|---|---|
+| **Cloud-native auth** | IAM instance role + AWS Secrets Manager — zero secrets on disk or in environment on production |
+| **Deployment automation** | `deploy.sh` provisions Nginx TLS 1.3 + HSTS + OCSP + PM2 from scratch on a bare Lightsail instance |
+| **Bedrock model routing** | Three-tier: Haiku (classify/simple) → Sonnet (complex) → Opus (deep), all on same IAM role |
+| **AES-256-GCM encryption** | At-rest encryption for sensitive fields, built into `@sandra/utils` |
+| **Monorepo test isolation** | 616 tests, zero infrastructure required — everything mocked with vitest |
+| **Schema migrations** | Versioned SQL files (`0001`→`0008`), idempotent `IF NOT EXISTS` DDL |
+
+---
+
+## Version History
+
+| Version | Date | Highlights |
 |---|---|---|
-| Voice synthesis (TTS) | `apps/voice-gateway/`, `packages/voice/` | GPU instance for VibeVoice |
-| Commitment graph | `packages/agent/` | LLM extraction design |
-
-> Voice transcription (STT) is live on Telegram via AWS Transcribe Streaming (`packages/media/src/transcribe.ts`). Synthesis remains deferred.
+| **0.1.0** | 2026-03-14 | Initial release — full production-ready baseline |
+| | | Telegram · WhatsApp · Discord · MS Teams · Slack · Web · Gmail |
+| | | AWS Bedrock (Haiku/Sonnet/Opus) · LanceDB hybrid memory |
+| | | Hybrid FTS5+vector · 6 embedding providers · multilingual stop words |
+| | | TTS (ElevenLabs/OpenAI/Edge) + `[[tts:]]` directives · STT (Transcribe) |
+| | | Tool loop detection · tool policy · subagent depth · sessions_spawn |
+| | | Gmail Pub/Sub watcher · inbound webhooks · auth profile failover |
+| | | 616 tests · OTel traces/metrics · PM2 + Nginx deployment |
 
 ---
 
 <div align="center">
   <img src="assets/icon.jpeg" alt="Sandra" width="48" style="border-radius:50%; opacity:0.7;" />
   <br/>
-  <sub>Built with AWS Bedrock · pnpm workspaces · Turborepo · Vitest</sub>
+  <sub>SandraCore v0.1.0 · Built with AWS Bedrock · pnpm workspaces · Turborepo · Vitest</sub>
 </div>
