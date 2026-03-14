@@ -1,4 +1,4 @@
-export type Channel = "telegram" | "whatsapp" | "discord" | "slack" | "web" | "msteams";
+export type Channel = "telegram" | "whatsapp" | "discord" | "slack" | "web" | "msteams" | "internal";
 
 export interface AssistantInput {
   id: string;

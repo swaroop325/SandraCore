@@ -17,7 +17,9 @@
     "@sandra/core": "workspace:*",
     "@sandra/utils": "workspace:*",
     "@sandra/otel": "workspace:*",
-    "@sandra/extensions-telegram": "workspace:*"
+    "@sandra/extensions-telegram": "workspace:*",
+    "@sandra/cron": "workspace:*",
+    "@sandra/agent": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

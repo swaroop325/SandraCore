@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./gmail-watcher": {
+      "import": "./dist/gmail-watcher.js",
+      "types": "./dist/gmail-watcher.d.ts"
     }
   },
   "scripts": {
@@ -25,7 +29,8 @@
     "@aws-sdk/client-sqs": "^3.600.0",
     "pg": "^8.12.0",
     "drizzle-orm": "^0.31.0",
-    "winston": "^3.13.0"
+    "winston": "^3.13.0",
+    "googleapis": "^144.0.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.0",

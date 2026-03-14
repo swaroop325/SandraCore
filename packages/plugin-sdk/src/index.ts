@@ -1,3 +1,6 @@
+export * from "./plugin-loader.js";
+export * from "./plugin-registry.js";
+
 import { randomBytes } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";

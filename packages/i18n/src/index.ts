@@ -5,6 +5,7 @@ const translations: Record<string, Record<string, string>> = {
     reminder_sent: "Reminder: {title}",
     user_blocked: "You are not authorized to use Sandra.",
     research_error: "I couldn't complete that research. Please try again.",
+    voice_not_supported: "Sorry, I couldn't transcribe that voice message.",
   },
   hi: {
     pairing_required: "Sandra का उपयोग करने के लिए pairing code चाहिए। /pair <code> भेजें।",
@@ -12,6 +13,7 @@ const translations: Record<string, Record<string, string>> = {
     reminder_sent: "याद दिलाना: {title}",
     user_blocked: "आप Sandra का उपयोग करने के लिए अधिकृत नहीं हैं।",
     research_error: "वह research पूरी नहीं हो सकी। कृपया पुनः प्रयास करें।",
+    voice_not_supported: "क्षमा करें, वह voice message transcribe नहीं हो सका।",
   },
 };
 

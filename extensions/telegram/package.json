@@ -13,7 +13,8 @@
     "@sandra/agent": "workspace:*",
     "@sandra/core": "workspace:*",
     "@sandra/utils": "workspace:*",
-    "@sandra/i18n": "workspace:*"
+    "@sandra/i18n": "workspace:*",
+    "@sandra/media": "workspace:*"
   },
   "devDependencies": { "typescript": "^5.4.0", "vitest": "^1.6.0" }
 }

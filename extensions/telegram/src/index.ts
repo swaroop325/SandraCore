@@ -3,8 +3,11 @@ import { handleMessage } from "@sandra/agent";
 import { upsertUserByTelegramId, redeemPairingCode, createPairingRequest, auditLog } from "@sandra/utils";
 import { t } from "@sandra/i18n";
 import { registerBot, sendTelegram } from "./send.js";
+import { handleVoiceMessage } from "./voice.js";
 
 export { sendTelegram };
+export { sendPoll } from "./polls.js";
+export * from "./actions.js";
 
 export let bot: Bot;
 
@@ -70,6 +73,46 @@ export function createBot(token: string): Bot {
     const { reply } = await handleMessage({
       id: crypto.randomUUID(),
       text,
+      userId: user.id,
+      sessionId,
+      channel: "telegram",
+      locale,
+      timestamp: Date.now(),
+    });
+
+    await sendTelegram(tgId, reply);
+  });
+
+  bot.on(["message:voice", "message:audio"], async (ctx) => {
+    const tgId = ctx.from!.id;
+    const locale = ctx.from!.language_code ?? "en";
+    const sessionId = `tg:${tgId}`;
+
+    const user = await upsertUserByTelegramId(
+      tgId,
+      ctx.from!.first_name ?? "User",
+      locale
+    );
+
+    if (user.status === "pending") {
+      await ctx.reply(t(locale, "pairing_required"));
+      return;
+    }
+    if (user.status === "blocked") {
+      await ctx.reply(t(locale, "user_blocked"));
+      return;
+    }
+
+    const transcript = await handleVoiceMessage(ctx, user.id, sessionId);
+    if (!transcript) {
+      await ctx.reply(t(locale, "voice_not_supported"));
+      return;
+    }
+
+    void auditLog({ action: "message.received", userId: user.id, sessionId, channel: "telegram" });
+    const { reply } = await handleMessage({
+      id: crypto.randomUUID(),
+      text: transcript,
       userId: user.id,
       sessionId,
       channel: "telegram",

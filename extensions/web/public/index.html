@@ -59,6 +59,22 @@
           addMsg('typing', '...');
           return;
         }
+        if (msg.type === 'chunk') {
+          let streamDiv = chat.querySelector('.streaming');
+          if (!streamDiv) {
+            streamDiv = document.createElement('div');
+            streamDiv.className = 'msg assistant streaming';
+            chat.appendChild(streamDiv);
+          }
+          streamDiv.textContent += msg.text;
+          chat.scrollTop = chat.scrollHeight;
+          return;
+        }
+        if (msg.type === 'message_done') {
+          const streamDiv = chat.querySelector('.streaming');
+          if (streamDiv) streamDiv.classList.remove('streaming');
+          return;
+        }
         removeTyping();
         if (msg.type === 'message' && msg.text) addMsg('assistant', msg.text);
         if (msg.type === 'error') addMsg('assistant', '! ' + msg.text);

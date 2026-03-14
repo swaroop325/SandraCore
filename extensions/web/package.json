@@ -14,6 +14,7 @@
     "@sandra/core": "workspace:*",
     "@sandra/utils": "workspace:*",
     "@sandra/agent": "workspace:*",
+    "@sandra/memory": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

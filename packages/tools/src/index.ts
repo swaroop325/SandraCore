@@ -6,3 +6,7 @@ export { webSearch } from "./web-search.js";
 export type { WebSearchResult } from "./web-search.js";
 export { getLinkPreview, extractUrls } from "./link-preview.js";
 export type { LinkPreviewResult } from "./link-preview.js";
+export { runInSandbox } from "./sandbox.js";
+export type { SandboxOptions, SandboxResult } from "./sandbox.js";
+export { readPdf } from "./pdf-tool.js";
+export type { PdfReadResult } from "./pdf-tool.js";

@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   id:         uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   telegramId: bigint("telegram_id", { mode: "bigint" }).unique(),
   phone:      text("phone").unique(),
+  email:      text("email").unique(),
   name:       text("name"),
   locale:     text("locale").default("en").notNull(),
   status:     text("status").default("pending").notNull(),
@@ -94,6 +95,18 @@ export const llmUsage = pgTable("llm_usage", {
   outputTokens:     integer("output_tokens").notNull(),
   estimatedCostUsd: doublePrecision("estimated_cost_usd").notNull(),
   recordedAt:       timestamp("recorded_at").defaultNow().notNull(),
+});
+
+// ── Inbound webhook hooks ─────────────────────────────────────────────────
+
+export const webhookHooks = pgTable("webhook_hooks", {
+  id:        uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId:    uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:      text("name").notNull(),
+  hookId:    text("hook_id").unique().notNull(),
+  secret:    text("secret").notNull(),
+  enabled:   boolean("enabled").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ── Security: pairing + allowlist ─────────────────────────────────────────

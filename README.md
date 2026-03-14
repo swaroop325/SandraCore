@@ -28,7 +28,7 @@
 
 ---
 
-Sandra handles natural conversation, task and reminder management, web research, long-term semantic memory, multi-channel messaging, browser automation, scheduled jobs, and multi-provider LLM routing — all through an intent-driven pipeline that matches model cost to task complexity.
+Sandra handles natural conversation, task and reminder management, web research, long-term semantic memory, multi-channel messaging, browser automation, scheduled jobs, multi-provider LLM routing, agentic tool-calling, audio transcription, streaming responses, recurring cron sessions, hybrid FTS+vector memory search, TTS output, webhook inbound triggers, tool loop detection, tool approval policies, auth profile failover, and multi-agent orchestration — all through an intent-driven pipeline that matches model cost to task complexity.
 
 ---
 
@@ -75,21 +75,27 @@ flowchart TD
     ADPT --> HM[handleMessage]
 
     subgraph agent["@sandra/agent"]
-        HM --> MEM["loadHistory\nrecallMemory"]
-        HM --> CMP[compactIfNeeded]
-        HM --> CLS[classifyMessage\nHaiku]
-        CLS --> SEL[selectModel\nhaiku / sonnet / opus]
+        HM --> DBC[debounce\n1500ms window]
+        DBC --> MEM["loadHistory\nrecallMemory (MMR+decay)"]
+        DBC --> URL[url-context\nauto-inject URL content]
+        DBC --> MOV[getUserModelOverride]
+        MEM & URL & MOV --> CMP[compactIfNeeded]
+        CMP --> CLS[classifyMessage\nHaiku]
+        CLS --> SEL[selectModel or override]
     end
 
     SEL --> RES[research\nPerplexity]:::tool
     SEL --> TSK[createTask\nPostgres + SQS]:::tool
-    SEL --> RSN[reason\nBedrock / Ollama / OpenAI]:::tool
+    SEL --> RSN["reason (agentic loop)\ntools × 5 → end_turn"]:::tool
+    SEL --> STR[streamReason\nchunked SSE]:::tool
 
-    RES & TSK & RSN --> OUT[AssistantOutput]
+    RES & TSK & RSN & STR --> OUT[AssistantOutput]
 
     OUT --> WRITE["appendMessage\nwriteMemory"]
     OUT --> OTEL[OTel trace + metrics]
     OUT --> ADPT2[Channel send]
+
+    CRON[cron-consumer\nPM2 process]:::channel --> HM
 
     classDef channel fill:#1a6cf5,color:#fff,stroke:none
     classDef tool fill:#2a6049,color:#fff,stroke:none
@@ -134,6 +140,7 @@ The built-in web channel (`extensions/web`) ships a zero-dependency dark-mode ch
 **Features:**
 - Dark-mode UI (`#0f0f0f` background, `#1a6cf5` user bubble, `#2a2a2a` assistant bubble)
 - Real-time typing indicator (`...`) while Sandra is thinking
+- **Streaming mode** (`WEB_STREAMING=1`): text streams word-by-word as it generates — `{ type: "chunk" }` frames accumulate in a live bubble, finalized on `{ type: "message_done" }`
 - Auto-reconnect with 3-second backoff
 - Enter to send, Shift+Enter for newline
 - Served from `extensions/web/public/index.html` — zero build step, zero dependencies
@@ -151,7 +158,7 @@ The built-in web channel (`extensions/web`) ships a zero-dependency dark-mode ch
 | LLM (fast) | AWS Bedrock — `claude-haiku-4-5-20251001` |
 | LLM (deep) | AWS Bedrock — `claude-opus-4-6` |
 | LLM (alt) | Ollama, any OpenAI-compatible API (pluggable) |
-| Embeddings | AWS Bedrock — `amazon.titan-embed-text-v1` (1536-dim) |
+| Embeddings | AWS Bedrock Titan (default) · Ollama · OpenAI-compatible (pluggable) |
 | Research | Perplexity AI — `sonar` model |
 | Messaging | Telegram · WhatsApp · Discord · MS Teams · Slack · Web |
 | Short-term memory | Amazon RDS PostgreSQL + Drizzle ORM |
@@ -256,18 +263,21 @@ sandra-core/
                                   │
                   ┌───────────────▼───────────────────┐
                   │        handleMessage()             │
+                  │  debounce() — 1500ms window        │
                   │  ┌──────────────────────────────┐ │
                   │  │  loadHistory  ║  recallMemory │ │  ← parallel
+                  │  │  urlContext   ║  modelOverride│ │
                   │  └──────────────────────────────┘ │
                   │         compactIfNeeded()          │
                   │         classifyMessage() → Haiku  │
-                  │         selectModel()              │
+                  │  selectModel() / model override    │
                   └──┬──────────────┬────────────┬────┘
                      │              │            │
              research│    task_create│     reason │
                      ▼              ▼            ▼
-               Perplexity     Postgres+SQS   Bedrock/Ollama
-               sonar model    reminder       SOUL.md + memory
+               Perplexity     Postgres+SQS   agentic loop
+               sonar model    reminder       tools × ≤5
+                                             → end_turn
                      │              │            │
                      └──────────────┴────────────┘
                                     │
@@ -361,6 +371,11 @@ isCommandAvailable()
 // Routing
 routeMessage()                 // group @mention gating
 getChannelMessageLimit()       // per-channel char limits
+
+// Per-user model override
+getUserModelOverride(userId)   // → Bedrock model ID | null
+setUserModelOverride(userId, preference)
+parseModelPreference(input)    // "haiku"|"sonnet"|"opus"|"fast"|"deep"|"reset" → canonical
 ```
 
 ---
@@ -370,7 +385,38 @@ getChannelMessageLimit()       // per-channel char limits
 The intelligence layer.
 
 ```ts
-handleMessage(input)           // full pipeline
+handleMessage(input)           // full pipeline (hooks → debounce → reason)
+
+// Agentic tool-calling loop
+executeTool(name, input, userId)
+TOOL_DEFINITIONS               // web_search · web_fetch · link_preview · create_task
+                               // analyze_image · run_code · read_pdf · delegate_to_agent
+// reason() runs up to 5 tool iterations, forced end_turn after exhaustion
+
+// Hook/lifecycle system
+hookRegistry                   // global singleton
+createHookRegistry()           // { register, unregister, runBefore, runAfter, runOnError, clear, count }
+// before_message → transform input | after_message → transform output | on_error → log/report
+
+// Agent-to-agent (ACP)
+callAgent({ agentName, task, userId? })              // → AcpResponse
+runAgentsInParallel(tasks, userId?)                  // → AcpResponse[]  (Promise.all)
+runAgentsSequentially(tasks, userId?)                // → AcpResponse    (chained context)
+// delegate_to_agent tool lets the LLM spawn sub-agents autonomously
+
+// Streaming
+streamReason(history, message, memories, modelId)    // → AsyncGenerator<string>
+
+// URL auto-context
+buildUrlContext(text)          // extracts first URL, fetches, injects 3000-char context
+
+// Inbound debounce
+createDebouncer(debounceMs?)   // 1500ms window — combines burst messages
+
+// Per-user model override
+getUserModelOverride(userId)   // reads user_settings.model_override
+setUserModelOverride(userId, preference)
+parseModelPreference(input)    // "haiku"|"sonnet"|"opus"|"fast"|"deep"|"reset"
 
 // Multi-provider LLM routing
 reasonWithProvider(history, text, memories, modelId)
@@ -409,7 +455,11 @@ getLinkPreview(url)   // og:title / og:description / og:image (SSRF-safe)
 extractUrls(text)     // pull all URLs from a string
 getSessionHistory()
 formatHistoryForContext()
+runInSandbox({ language, code })  // Docker-isolated execution (python/js/ts/bash)
+readPdf(path | buffer)            // extract text + page count from PDF via pdf-parse
 ```
+
+**`runInSandbox` security flags:** `--rm --network none --memory=128m --cpus=0.5 --pids-limit 64 --read-only --tmpfs /tmp:size=64m`. Code is written to a temp file, mounted read-only as `/code/run.*`, then cleaned up in `finally`. Returns `{ stdout, stderr, exitCode, timedOut }`. Falls back to `{ stderr: "Docker not available" }` when Docker is absent.
 
 ---
 
@@ -475,25 +525,39 @@ formatStatus("error", "msg")     // → "❌ msg"
 validateManifest(unknown)        // type guard for PluginManifest
 acquireLock(name)                // → boolean (false if held)
 releaseLock(name)
+
+// Plugin runtime
+loadPlugin(specifier)            // dynamic import → validate → activate()
+createPluginRegistry()           // load · unload · getTools() · list()
 ```
+
+A plugin is any ESM module that exports `manifest: PluginManifest`, `tools: PluginToolDef[]`, and optionally `activate(ctx)` / `deactivate()`. The registry's `getTools()` result is automatically picked up by `executePluginTool` in the agent — no restart needed.
 
 ---
 
 ### `@sandra/memory`
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Dual-layer memory                     │
-│                                                         │
-│  Short-term (Postgres)          Long-term (LanceDB)     │
-│  ─────────────────────          ─────────────────────   │
-│  Scoped to sessionId            Scoped to userId        │
-│  Last 20 turns verbatim         Titan embed (1536-dim)  │
-│  → directly in LLM history      → cosine similarity     │
-│                                 → top-5 injected into   │
-│                                   system prompt         │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Dual-layer memory                       │
+│                                                             │
+│  Short-term (Postgres)          Long-term (LanceDB)         │
+│  ─────────────────────          ─────────────────────────   │
+│  Scoped to sessionId            Scoped to userId            │
+│  Last 20 turns verbatim         Titan embed / Ollama /      │
+│  → directly in LLM history        OpenAI-compat (pluggable) │
+│                                 → cosine search k×3 cands   │
+│                                 → temporal decay (λ=0.01)   │
+│                                 → MMR diversity re-rank      │
+│                                 → top-5 injected into       │
+│                                   system prompt             │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+**MMR + Temporal Decay:**
+- Fetch `k×3` candidates by cosine similarity
+- Apply exponential decay: `score × exp(-λ × days_old)` — recent facts score higher
+- MMR greedy re-rank: `α×score - (1-α)×maxSimilarity` — diverse, non-redundant results
 
 ---
 
@@ -521,13 +585,15 @@ Security hardening built in:
 
 SQS long-poll consumer. Each cycle: receive → look up reminder → send via channel → mark `sent = true` → delete from SQS. Always deletes even on failure to prevent infinite redelivery.
 
+**Cron consumer** (`src/cron-consumer.ts`): separate PM2 process that polls `cron_jobs` every 30 seconds and fires scheduled agent tasks via `handleMessage`. Supports arbitrary expressions like `0 9 * * 1-5` (weekday 9 AM briefings).
+
 ---
 
 ## Extensions
 
 ### `extensions/telegram` — grammY
 
-Primary channel. Typing indicators, message reactions, DM-only pairing flow.
+Primary channel. Typing indicators, message reactions, DM-only pairing flow. **Voice messages** auto-transcribed via AWS Transcribe Streaming — both `voice` and `audio` message types are handled.
 
 ```
 New user → status = "pending" → "You need a pairing code."
@@ -552,9 +618,18 @@ Webhook handler. Acquires OAuth2 client-credentials token from Microsoft to send
 ```
 ws://host/ws?token=<token>
 
+# Normal mode
 Client → { text: "hello" }
 Server → { type: "typing" }
 Server → { type: "message", text: "..." }
+
+# Streaming mode (WEB_STREAMING=1)
+Client → { text: "hello" }
+Server → { type: "typing" }
+Server → { type: "chunk",        text: "Hello" }
+Server → { type: "chunk",        text: ", how can" }
+Server → { type: "chunk",        text: " I help?" }
+Server → { type: "message_done", text: "Hello, how can I help?" }
 ```
 
 The `public/index.html` web UI is self-contained — no bundler, no npm, no framework. Open it directly.
@@ -597,7 +672,10 @@ DM and channel message handling. Scoped to workspace via `SLACK_BOT_TOKEN`.
                      └──────────────┘
 ```
 
-**Migrations:** `0001_initial` → `0002_sessions` → `0003_llm_usage` → `0004_security` (audit_log)
+**Migrations:** `0001_initial` → `0002_sessions` → `0003_llm_usage` → `0004_security` (audit_log) → `0005_model_override` → `0006_cron_jobs`
+
+`0005` adds `model_override VARCHAR(100)` to `user_settings`.
+`0006` adds `cron_jobs` table: `id · user_id · session_id · expression · prompt · channel · enabled · last_run_at · next_run_at`.
 
 ---
 
@@ -860,13 +938,18 @@ curl https://your-domain.com/health
 | `TEAMS_APP_ID` | No | MS Teams Bot Framework app ID |
 | `TEAMS_APP_PASSWORD` | No | MS Teams Bot Framework app password |
 | `LOG_LEVEL` | No | Winston log level (default: `info`) |
+| `WEB_STREAMING` | No | `1` to enable streaming WebSocket responses in the web extension |
+| `TRANSCRIBE_LANGUAGE` | No | BCP-47 language code for AWS Transcribe (default: `en-US`) |
+| `EMBEDDING_PROVIDER` | No | `bedrock` (default) · `ollama` · `openai` — selects embedding backend |
+| `OLLAMA_EMBED_MODEL` | No | Ollama model for embeddings (default: `nomic-embed-text`) |
+| `OPENAI_EMBED_MODEL` | No | OpenAI embedding model (default: `text-embedding-3-small`) |
 
 ---
 
 ## Testing
 
 ```bash
-pnpm test                          # all 26 packages
+pnpm test                          # all 27 packages, 616 tests
 pnpm test -- --coverage            # with Istanbul v8 coverage
 cd packages/agent && pnpm test     # single package
 ```
@@ -876,22 +959,25 @@ cd packages/agent && pnpm test     # single package
 | Package | Test files | What's covered |
 |---|---|---|
 | `@sandra/core` | `types.test.ts` | Type guards, constants |
-| `@sandra/utils` | 19 test files | Secrets, sessions, rate limit, regex, secret refs, logger, pairing, retry, circuit breaker, dedupe, request IDs, dead letter, health, usage, crypto, audit, sanitize, process utils, routing |
-| `@sandra/agent` | 6 test files | Intent, soul, token counter, compaction, spawn, llm-provider |
-| `@sandra/memory` | `short-term.test.ts` | History ordering, append SQL |
-| `@sandra/tools` | 4 test files | Web fetch, web search, session history, link preview |
-| `@sandra/cron` | `parser.test.ts`, `scheduler.test.ts` | Cron parsing, scheduling, in-flight dedup |
+| `@sandra/utils` | 21 test files | Secrets, sessions, rate limit, regex, secret refs, logger, pairing, retry, circuit breaker, dedupe, request IDs, dead letter, health, usage, crypto, audit, sanitize, process utils, routing, **auth-profiles (round-robin + failover)** |
+| `@sandra/agent` | 16 test files | Intent, soul, token counter, compaction, spawn, llm-provider, url-context, debounce, stream-reason, hooks (incl. lifecycle events), ACP, multi-agent, plugin-tool-executor, **tool-policy, tool-loop-detection, subagent-depth** |
+| `@sandra/memory` | 6 test files | History ordering, MMR + decay, Bedrock/Ollama/OpenAI embed providers, **query expansion, hybrid FTS+vector fusion, FTS5 (node:sqlite)** |
+| `@sandra/tools` | 6 test files | Web fetch, web search, session history, link preview, sandbox, PDF |
+| `@sandra/plugin-sdk` | 3 test files | Manifest validation, plugin loader, registry (dedup · unload · getTools) |
+| `@sandra/cron` | 5 test files | Cron parsing, **at/every/cron schedule kinds, TZ/stagger, delivery modes**, scheduling, in-flight dedup |
+| `@sandra/tts` | `index.test.ts` | **ElevenLabs + OpenAI TTS providers, channel-aware output** |
 | `@sandra/markdown` | `formatter.test.ts` | All 5 channel formats, chunk splitting |
 | `@sandra/browser` | `browser-tool.test.ts` | CDP mocked, all 7 actions |
-| `@sandra/plugin-sdk` | `index.test.ts` | Chunk, lock, manifest, status |
-| `@sandra/media` | `image-analysis.test.ts` | Bedrock vision call |
+| `@sandra/media` | `image-analysis.test.ts`, `transcribe.test.ts` | Bedrock vision call, AWS Transcribe Streaming |
 | `@sandra/research` | `index.test.ts` | Perplexity response, error handling |
 | `@sandra/tasks` | `index.test.ts`, `reminders.test.ts` | Task insert, SQS enqueue |
 | `@sandra/i18n` | `index.test.ts` | Translations, interpolation, fallbacks |
 | `@sandra/config` | `schema.test.ts` | Zod validation |
-| extensions | `telegram/typing`, `whatsapp/index`, `discord/index`, `msteams/index` | Channel adapters |
+| `@sandra/api-server` | `routes/webhooks.test.ts` | **Webhook inbound HMAC verification, handleMessage dispatch** |
+| extensions | `telegram/polls`, `telegram/actions`, `telegram/typing`, `discord/polls`, `discord/actions`, `slack/actions`, `whatsapp/actions`, `msteams/index` | Channel polls, pin/delete/reaction actions |
 
 **All external dependencies mocked.** Zero infrastructure required to run tests.
+**616 tests across 21 packages — all passing.**
 
 ---
 
@@ -987,8 +1073,10 @@ curl https://your-domain.com/health
 
 | Feature | Location | Blocked on |
 |---|---|---|
-| Voice (STT/TTS) | `apps/voice-gateway/`, `packages/voice/` | GPU instance for VibeVoice |
+| Voice synthesis (TTS) | `apps/voice-gateway/`, `packages/voice/` | GPU instance for VibeVoice |
 | Commitment graph | `packages/agent/` | LLM extraction design |
+
+> Voice transcription (STT) is live on Telegram via AWS Transcribe Streaming (`packages/media/src/transcribe.ts`). Synthesis remains deferred.
 
 ---
 

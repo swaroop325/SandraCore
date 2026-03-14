@@ -14,7 +14,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@sandra/utils": "workspace:*"
+    "@sandra/utils": "workspace:*",
+    "@sandra/agent": "workspace:*",
+    "@sandra/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

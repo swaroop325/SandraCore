@@ -1,10 +1,22 @@
 import express, { type Request, type Response, type NextFunction } from "express";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { handleWebhookInbound } from "./routes/webhooks.js";
+import { handleGmailWebhook } from "./routes/gmail.js";
 import { registerGracefulShutdown } from "./graceful-shutdown.js";
 import rateLimit from "express-rate-limit";
 import { initOtel } from "@sandra/otel";
 import { loadSecrets, checkDB, checkSQS, createAuthRateLimiter, generateRequestId, withRequestId, auditLog } from "@sandra/utils";
 import { handleMessage } from "@sandra/agent";
 import { createBot, getWebhookHandler } from "@sandra/extensions-telegram";
+import { attachWebSocketServer } from "@sandra/extensions-web";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const chatHtml = readFileSync(
+  join(__dirname, "../../../extensions/web/src/chat-ui.html"),
+  "utf-8"
+);
 
 initOtel("sandra-api");
 await loadSecrets();
@@ -22,7 +34,7 @@ if (domain) {
 const app = express();
 
 // ── Security headers ──────────────────────────────────────────────────────
-app.use((_req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
@@ -31,15 +43,28 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   );
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; frame-ancestors 'none';"
-  );
+  // /chat serves an inline-script HTML page — allow it; all other routes stay strict.
+  if (req.path === "/chat") {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none';"
+    );
+  } else {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none';"
+    );
+  }
   res.removeHeader("X-Powered-By");
   next();
 });
 
-app.use(express.json({ limit: "256kb" }));
+app.use(express.json({
+  limit: "256kb",
+  verify: (req: Request, _res: Response, buf: Buffer) => {
+    (req as Request & { rawBody: string }).rawBody = buf.toString();
+  },
+}));
 
 // ── CORS — only allow configured origins ─────────────────────────────────
 const ALLOWED_ORIGINS = new Set(
@@ -105,6 +130,16 @@ app.post("/webhooks/telegram", (req: Request, res: Response) => {
     return;
   }
   webhookHandler(req, res);
+});
+
+// ── Inbound webhook triggers ──────────────────────────────────────────────
+app.post("/webhooks/inbound/:hookId", (req: Request, res: Response) => {
+  void handleWebhookInbound(req, res);
+});
+
+// ── Gmail Pub/Sub push notifications ─────────────────────────────────────
+app.post("/webhooks/gmail", (req: Request, res: Response) => {
+  void handleGmailWebhook(req, res);
 });
 
 // ── Direct REST API ───────────────────────────────────────────────────────
@@ -176,9 +211,15 @@ app.get("/health", async (req: Request, res: Response) => {
   });
 });
 
-// ── Reject unexpected WebSocket upgrade attempts ──────────────────────────
+// ── Web chat UI ───────────────────────────────────────────────────────────
+app.get("/chat", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(chatHtml);
+});
+
+// ── Reject unexpected WebSocket upgrade attempts (exempt /chat/ws) ────────
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.headers.upgrade?.toLowerCase() === "websocket") {
+  if (req.headers.upgrade?.toLowerCase() === "websocket" && req.path !== "/chat/ws") {
     res.status(426).json({ error: "WebSocket not supported on this endpoint" });
     return;
   }
@@ -194,4 +235,5 @@ const PORT = Number(process.env["PORT"] ?? 3000);
 const server = app.listen(PORT, () => {
   console.log(`Sandra API listening on port ${PORT}`);
 });
+attachWebSocketServer(server);
 registerGracefulShutdown(server);

@@ -36,3 +36,8 @@ export { execWithTimeout, killTree, isCommandAvailable } from "./process-utils.j
 export type { ExecResult, ExecOptions } from "./process-utils.js";
 export { routeMessage, getChannelMessageLimit } from "./routing.js";
 export type { RoutingContext, RoutingDecision } from "./routing.js";
+export { getUserModelOverride, setUserModelOverride, parseModelPreference } from "./user-model.js";
+export type { ModelPreference } from "./user-model.js";
+export { createProfileManager } from "./auth-profiles.js";
+export type { AuthProfile, ProfileManager, ProfileManagerOptions } from "./auth-profiles.js";
+export * from "./gmail-watcher.js";

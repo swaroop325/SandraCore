@@ -14,11 +14,11 @@ importers:
   .:
     devDependencies:
       '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.37
+        specifier: ^22.0.0
+        version: 22.19.15
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.1(vitest@1.6.1(@types/node@20.19.37))
+        version: 1.6.1(vitest@1.6.1(@types/node@22.19.15))
       drizzle-kit:
         specifier: ^0.22.0
         version: 0.22.8
@@ -30,7 +30,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.37)
+        version: 1.6.1(@types/node@22.19.15)
 
   apps/api-server:
     dependencies:
@@ -98,9 +98,15 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.600.0
         version: 3.1009.0
+      '@sandra/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@sandra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sandra/cron':
+        specifier: workspace:*
+        version: link:../../packages/cron
       '@sandra/extensions-telegram':
         specifier: workspace:*
         version: link:../../extensions/telegram
@@ -188,6 +194,9 @@ importers:
       '@sandra/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@sandra/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@sandra/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -210,6 +219,9 @@ importers:
       '@sandra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sandra/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@sandra/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -272,18 +284,27 @@ importers:
       '@sandra/core':
         specifier: workspace:*
         version: link:../core
+      '@sandra/media':
+        specifier: workspace:*
+        version: link:../media
       '@sandra/memory':
         specifier: workspace:*
         version: link:../memory
       '@sandra/otel':
         specifier: workspace:*
         version: link:../otel
+      '@sandra/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
       '@sandra/research':
         specifier: workspace:*
         version: link:../research
       '@sandra/tasks':
         specifier: workspace:*
         version: link:../tasks
+      '@sandra/tools':
+        specifier: workspace:*
+        version: link:../tools
       '@sandra/utils':
         specifier: workspace:*
         version: link:../utils
@@ -347,6 +368,12 @@ importers:
 
   packages/cron:
     dependencies:
+      '@sandra/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@sandra/core':
+        specifier: workspace:*
+        version: link:../core
       '@sandra/utils':
         specifier: workspace:*
         version: link:../utils
@@ -386,6 +413,9 @@ importers:
   packages/media:
     dependencies:
       '@aws-sdk/client-bedrock-runtime':
+        specifier: ^3.0.0
+        version: 3.1009.0
+      '@aws-sdk/client-transcribe-streaming':
         specifier: ^3.0.0
         version: 3.1009.0
       '@sandra/core':
@@ -528,6 +558,25 @@ importers:
       '@sandra/utils':
         specifier: workspace:*
         version: link:../utils
+      pdf-parse:
+        specifier: ^1.1.1
+        version: 1.1.4
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.37)
+
+  packages/tts:
+    dependencies:
+      '@sandra/core':
+        specifier: workspace:*
+        version: link:../core
+      '@sandra/utils':
+        specifier: workspace:*
+        version: link:../utils
     devDependencies:
       typescript:
         specifier: ^5.4.0
@@ -617,6 +666,10 @@ packages:
     resolution: {integrity: sha512-emuPZV3PvPoTYVCk/YB4Ye2QtuT2sdz9UAqR8sAyG1RQ4KwBE42lgIuNuXW6d8XlxBp6R0o0qoGbFTkAC6XTFQ==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-transcribe-streaming@3.1009.0':
+    resolution: {integrity: sha512-dlA16yyiuw2IYOZgnlCflySbQE7Eg+jwBGpEYzCbOR/mSAxUAP3vvXWVczCPaSHGgBx1z88jV2eXatLIlAd3fg==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/core@3.973.20':
     resolution: {integrity: sha512-i3GuX+lowD892F3IuJf8o6AbyDupMTdyTxQrCJGcn71ni5hTZ82L4nQhcdumxZ7XPJRJJVHS/CR3uYOIIs0PVA==}
     engines: {node: '>=20.0.0'}
@@ -675,6 +728,10 @@ packages:
 
   '@aws-sdk/middleware-sdk-sqs@3.972.15':
     resolution: {integrity: sha512-X7yt+gJzZEK247nppuUVWS1i83q8zhZdBk1H2b6/qeXNv1ILgw0bQLNbFNG4gJi3P7vZV+PhtPkax0nwXAvRtg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/middleware-sdk-transcribe-streaming@3.972.8':
+    resolution: {integrity: sha512-fBIX+TEwzKnJnQiMjOLUl0480HbKd0enZ77Q5aEVzegT2jHyESEHFWJaB3q64r6xXZYioPxLnuTkDe6xVDjqCA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/middleware-user-agent@3.972.21':
@@ -2061,6 +2118,9 @@ packages:
   '@types/node@20.19.37':
     resolution: {integrity: sha512-8kzdPJ3FsNsVIurqBs7oodNnCEVbni9yUEkaHbgptDACOPW04jimGagZ51E6+lXUwJjgnBw+hyko/lkFWCldqw==}
 
+  '@types/node@22.19.15':
+    resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
+
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
 
@@ -3226,6 +3286,9 @@ packages:
     resolution: {integrity: sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==}
     engines: {node: '>= 0.6'}
 
+  node-ensure@0.0.0:
+    resolution: {integrity: sha512-DRI60hzo2oKN1ma0ckc6nQWlHU69RH6xN0sjQTjMpChPfTYvKZdcQFfdYK2RWbJcKyUizSIy/l8OTGxMAM1QDw==}
+
   node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
     engines: {node: 4.x || >=6.0.0}
@@ -3333,6 +3396,10 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
+
+  pdf-parse@1.1.4:
+    resolution: {integrity: sha512-XRIRcLgk6ZnUbsHsYXExMw+krrPE81hJ6FQPLdBNhhBefqIQKXu/WeTgNBGSwPrfU0v+UCEwn7AoAUOsVKHFvQ==}
+    engines: {node: '>=6.8.1'}
 
   peek-readable@4.1.0:
     resolution: {integrity: sha512-ZI3LnwUv5nOGbQzD9c2iDG6toheuXSZP5esSHBjopsXH4dg19soufvpUGA3uohi5anFtGb2lhAVdHzH6R/Evvg==}
@@ -4179,6 +4246,57 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
+  '@aws-sdk/client-transcribe-streaming@3.1009.0':
+    dependencies:
+      '@aws-crypto/sha256-browser': 5.2.0
+      '@aws-crypto/sha256-js': 5.2.0
+      '@aws-sdk/core': 3.973.20
+      '@aws-sdk/credential-provider-node': 3.972.21
+      '@aws-sdk/eventstream-handler-node': 3.972.11
+      '@aws-sdk/middleware-eventstream': 3.972.8
+      '@aws-sdk/middleware-host-header': 3.972.8
+      '@aws-sdk/middleware-logger': 3.972.8
+      '@aws-sdk/middleware-recursion-detection': 3.972.8
+      '@aws-sdk/middleware-sdk-transcribe-streaming': 3.972.8
+      '@aws-sdk/middleware-user-agent': 3.972.21
+      '@aws-sdk/middleware-websocket': 3.972.13
+      '@aws-sdk/region-config-resolver': 3.972.8
+      '@aws-sdk/types': 3.973.6
+      '@aws-sdk/util-endpoints': 3.996.5
+      '@aws-sdk/util-user-agent-browser': 3.972.8
+      '@aws-sdk/util-user-agent-node': 3.973.7
+      '@smithy/config-resolver': 4.4.11
+      '@smithy/core': 3.23.11
+      '@smithy/eventstream-serde-browser': 4.2.12
+      '@smithy/eventstream-serde-config-resolver': 4.3.12
+      '@smithy/eventstream-serde-node': 4.2.12
+      '@smithy/fetch-http-handler': 5.3.15
+      '@smithy/hash-node': 4.2.12
+      '@smithy/invalid-dependency': 4.2.12
+      '@smithy/middleware-content-length': 4.2.12
+      '@smithy/middleware-endpoint': 4.4.25
+      '@smithy/middleware-retry': 4.4.42
+      '@smithy/middleware-serde': 4.2.14
+      '@smithy/middleware-stack': 4.2.12
+      '@smithy/node-config-provider': 4.3.12
+      '@smithy/node-http-handler': 4.4.16
+      '@smithy/protocol-http': 5.3.12
+      '@smithy/smithy-client': 4.12.5
+      '@smithy/types': 4.13.1
+      '@smithy/url-parser': 4.2.12
+      '@smithy/util-base64': 4.3.2
+      '@smithy/util-body-length-browser': 4.2.2
+      '@smithy/util-body-length-node': 4.2.3
+      '@smithy/util-defaults-mode-browser': 4.3.41
+      '@smithy/util-defaults-mode-node': 4.2.44
+      '@smithy/util-endpoints': 3.3.3
+      '@smithy/util-middleware': 4.2.12
+      '@smithy/util-retry': 4.2.12
+      '@smithy/util-utf8': 4.2.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - aws-crt
+
   '@aws-sdk/core@3.973.20':
     dependencies:
       '@aws-sdk/types': 3.973.6
@@ -4341,6 +4459,17 @@ snapshots:
       '@smithy/types': 4.13.1
       '@smithy/util-hex-encoding': 4.2.2
       '@smithy/util-utf8': 4.2.2
+      tslib: 2.8.1
+
+  '@aws-sdk/middleware-sdk-transcribe-streaming@3.972.8':
+    dependencies:
+      '@aws-sdk/types': 3.973.6
+      '@aws-sdk/util-format-url': 3.972.8
+      '@smithy/eventstream-serde-browser': 4.2.12
+      '@smithy/protocol-http': 5.3.12
+      '@smithy/signature-v4': 5.3.12
+      '@smithy/types': 4.13.1
+      '@smithy/uuid': 1.1.2
       tslib: 2.8.1
 
   '@aws-sdk/middleware-user-agent@3.972.21':
@@ -6048,6 +6177,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/node@22.19.15':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/pg-pool@2.0.6':
     dependencies:
       '@types/pg': 8.18.0
@@ -6188,7 +6321,7 @@ snapshots:
       '@typescript-eslint/types': 8.57.0
       eslint-visitor-keys: 5.0.1
 
-  '@vitest/coverage-v8@1.6.1(vitest@1.6.1(@types/node@20.19.37))':
+  '@vitest/coverage-v8@1.6.1(vitest@1.6.1(@types/node@22.19.15))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
@@ -6203,7 +6336,7 @@ snapshots:
       std-env: 3.10.0
       strip-literal: 2.1.1
       test-exclude: 6.0.0
-      vitest: 1.6.1(@types/node@20.19.37)
+      vitest: 1.6.1(@types/node@22.19.15)
     transitivePeerDependencies:
       - supports-color
 
@@ -7307,6 +7440,8 @@ snapshots:
 
   negotiator@0.6.3: {}
 
+  node-ensure@0.0.0: {}
+
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
@@ -7396,6 +7531,10 @@ snapshots:
   pathval@1.1.1: {}
 
   pathval@2.0.1: {}
+
+  pdf-parse@1.1.4:
+    dependencies:
+      node-ensure: 0.0.0
 
   peek-readable@4.1.0: {}
 
@@ -7917,6 +8056,24 @@ snapshots:
       - supports-color
       - terser
 
+  vite-node@1.6.1(@types/node@22.19.15):
+    dependencies:
+      cac: 6.7.14
+      debug: 4.4.3
+      pathe: 1.1.2
+      picocolors: 1.1.1
+      vite: 5.4.21(@types/node@22.19.15)
+    transitivePeerDependencies:
+      - '@types/node'
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
   vite-node@3.2.4(@types/node@20.19.37):
     dependencies:
       cac: 6.7.14
@@ -7944,6 +8101,15 @@ snapshots:
       '@types/node': 20.19.37
       fsevents: 2.3.3
 
+  vite@5.4.21(@types/node@22.19.15):
+    dependencies:
+      esbuild: 0.27.4
+      postcss: 8.5.8
+      rollup: 4.59.0
+    optionalDependencies:
+      '@types/node': 22.19.15
+      fsevents: 2.3.3
+
   vitest@1.6.1(@types/node@20.19.37):
     dependencies:
       '@vitest/expect': 1.6.1
@@ -7968,6 +8134,40 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.19.37
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vitest@1.6.1(@types/node@22.19.15):
+    dependencies:
+      '@vitest/expect': 1.6.1
+      '@vitest/runner': 1.6.1
+      '@vitest/snapshot': 1.6.1
+      '@vitest/spy': 1.6.1
+      '@vitest/utils': 1.6.1
+      acorn-walk: 8.3.5
+      chai: 4.5.0
+      debug: 4.4.3
+      execa: 8.0.1
+      local-pkg: 0.5.1
+      magic-string: 0.30.21
+      pathe: 1.1.2
+      picocolors: 1.1.1
+      std-env: 3.10.0
+      strip-literal: 2.1.1
+      tinybench: 2.9.0
+      tinypool: 0.8.4
+      vite: 5.4.21(@types/node@22.19.15)
+      vite-node: 1.6.1(@types/node@22.19.15)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 22.19.15
     transitivePeerDependencies:
       - less
       - lightningcss
