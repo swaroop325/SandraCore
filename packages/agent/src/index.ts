@@ -3,7 +3,6 @@ import { reason } from "./reason.js";
 import { compactIfNeeded } from "./compaction.js";
 import { buildUrlContext } from "./url-context.js";
 import { research } from "@sandra/research";
-import { createTask } from "@sandra/tasks";
 import { loadHistory, appendMessage, recallMemory, writeMemory } from "@sandra/memory";
 import { trace, metrics } from "@sandra/otel";
 import { getUserModelOverride } from "@sandra/utils";
@@ -70,8 +69,6 @@ export async function handleMessage(input: AssistantInput): Promise<AssistantOut
       reply = await trace("agent.respond", async () => {
         if (intent === "research") {
           return research(enrichedText);
-        } else if (intent === "task_create") {
-          return createTask(enrichedText, userId);
         } else {
           return reason(compactedHistory, enrichedText, memories, modelId, userId);
         }

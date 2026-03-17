@@ -35,6 +35,7 @@ export function createAgentExecutor(): (job: CronJob) => Promise<string> {
             delivery: {
               mode: job.delivery.mode,
               ...(job.delivery.webhookUrl !== undefined ? { webhookUrl: job.delivery.webhookUrl } : {}),
+              ...(job.delivery.webhookSecret !== undefined ? { webhookSecret: job.delivery.webhookSecret } : {}),
             },
           }
         : {}),

@@ -298,12 +298,18 @@ export async function executeTool(
         const { createDbCronStore, normalizeSchedule, nextOccurrenceForSchedule } = await getCronModule();
         const store = createDbCronStore();
         if (action === "list" || action === "status") {
-          const jobs = await store.list();
-          const userJobs = jobs.filter(j => j.userId === userId);
-          if (userJobs.length === 0) return "No scheduled tasks.";
-          return JSON.stringify(userJobs.map(j => ({
+          const result = await db.query<{
+            id: string; prompt: string; expression: string;
+            enabled: boolean; nextRunAt: Date; lastRunAt: Date | null;
+          }>(
+            `SELECT id, prompt, expression, enabled, next_run_at AS "nextRunAt", last_run_at AS "lastRunAt"
+             FROM cron_jobs WHERE user_id = $1 ORDER BY next_run_at ASC`,
+            [userId]
+          );
+          if (result.rows.length === 0) return "No scheduled tasks.";
+          return JSON.stringify(result.rows.map(j => ({
             id: j.id,
-            task: j.task,
+            task: j.prompt,
             expression: j.expression,
             enabled: j.enabled,
             nextRunAt: j.nextRunAt,

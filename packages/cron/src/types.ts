@@ -10,5 +10,6 @@ export type CronDelivery = {
   channel?: string;
   to?: string;
   webhookUrl?: string;
+  webhookSecret?: string;
   failureDestination?: { channel?: string; to?: string; webhookUrl?: string };
 };

@@ -135,25 +135,20 @@ export async function recallMemory(
   const table = await getTable();
   const fts = getFtsStore();
 
-  // Run vector search and FTS search in parallel
-  const vectorSearchPromise = (async () => {
-    const vector = await embed(query);
-    const results = await table
-      .search(vector)
-      .where(`"userId" = '${userId.replace(/'/g, "''")}'`)
-      .limit(k * 3)
-      .toArray();
+  const vector = await embed(query);
+  const rawResults = await table
+    .search(vector)
+    .where(`"userId" = '${userId.replace(/'/g, "''")}'`)
+    .limit(k * 3)
+    .toArray();
 
-    return results
-      .filter((row) => row["userId"] !== "__init__")
-      .map((row) => ({
-        text: row["text"] as string,
-        score: 1 - ((row["_distance"] as number) ?? 0),
-        createdAt: new Date(row["createdAt"] as string),
-      }));
-  })();
-
-  const [vectorResults] = await Promise.all([vectorSearchPromise]);
+  const vectorResults = rawResults
+    .filter((row) => row["userId"] !== "__init__")
+    .map((row) => ({
+      text: row["text"] as string,
+      score: 1 - ((row["_distance"] as number) ?? 0),
+      createdAt: new Date(row["createdAt"] as string),
+    }));
 
   if (fts !== null) {
     // Hybrid path: fuse vector + FTS results

@@ -152,13 +152,13 @@ describe("setEmbeddingProvider / getEmbeddingProvider", () => {
 });
 
 describe("autoConfigureEmbeddingProvider", () => {
-  it("returns Bedrock provider by default (no env var set)", async () => {
+  it("returns Cohere provider by default (no env var set)", async () => {
     // Reset module cache to get a fresh _provider = null
     const mod = await import("./embedding-provider.js");
     // Force reset by calling with default env
     delete process.env["EMBEDDING_PROVIDER"];
     const provider = mod.autoConfigureEmbeddingProvider();
-    expect(provider.name).toBe("bedrock");
+    expect(provider.name).toBe("cohere");
   });
 
   it("returns Ollama provider when EMBEDDING_PROVIDER=ollama", async () => {

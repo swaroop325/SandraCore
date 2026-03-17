@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { createSubsystemLogger } from "@sandra/utils";
 
@@ -35,12 +36,7 @@ export function createEmbeddingCache(dbPath?: string): EmbeddingCache {
     const PRUNE_COUNT = 5_000;
 
     function digestText(text: string): string {
-      // Simple djb2-like hash -- good enough for cache keys
-      let hash = 5381;
-      for (let i = 0; i < text.length; i++) {
-        hash = (hash * 33) ^ text.charCodeAt(i);
-      }
-      return (hash >>> 0).toString(16).padStart(8, "0") + "-" + text.length.toString(36);
+      return createHash("sha256").update(text).digest("hex");
     }
 
     return {
